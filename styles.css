@@ -1,0 +1,9 @@
+body{
+    margin: 0px;
+    background-color: beige;
+    text-align: center;
+    overflow: hidden;
+}
+#canvas{
+    background-color:lightgrey;
+}

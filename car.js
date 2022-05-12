@@ -9,9 +9,10 @@ class Car{
         this.maxSpeed=4;
         this.angle=0;
         this.friction=0.05;
+        this.sensor=new Sensor(this);
         this.controls=new Controls();
     }
-    update(){
+    update(roadBorders){
 
         // car Physics
         // negative speed just denotes moving backwards
@@ -55,6 +56,8 @@ class Car{
         this.x-=Math.sin(this.angle)*this.speed;
         
         this.y-=Math.cos(this.angle)*this.speed;
+
+        this.sensor.update(roadBorders);
     }
     draw(context){
         context.save()
@@ -67,7 +70,10 @@ class Car{
             this.width,
             this.height
         );
+        
         context.fill();
         context.restore();
+        this.sensor.draw(context);
+        
     }
 }

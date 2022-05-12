@@ -10,7 +10,7 @@ const car = new Car(road.getLaneCenter(1),100,30,50);
 animate();
 
 function animate(){
-    car.update();
+    car.update(road.borders);
     canvas.height=window.innerHeight;
     //add effect of camera following the car as if the road is moving not the car
     context.save();

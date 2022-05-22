@@ -39,3 +39,20 @@ function getIntersection(A,B,C,D){
     return null;
 
 }
+
+function plygonIntersects(polygon, borders){
+    for(let i=0;i<polygon.length;i++){
+        for(let j=0; j<borders.length;j++){
+            const atouch=getIntersection(
+                polygon[i],
+                polygon[(i+1)%polygon.length],
+                borders[j],
+                borders[(j+1)%borders.length]
+            );
+            if(atouch) {
+                return true
+            }
+        }
+    }
+    return false;
+}

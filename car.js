@@ -11,9 +11,10 @@ class Car{
         this.friction=0.05;
         this.sensor=new Sensor(this);
         this.controls=new Controls();
+        this.hit=false;
     }
     update(roadBorders){
-
+        console.log(this.angle);
         // car Physics
         // negative speed just denotes moving backwards
         if(this.controls.forward){
@@ -56,23 +57,76 @@ class Car{
         this.x-=Math.sin(this.angle)*this.speed;
         
         this.y-=Math.cos(this.angle)*this.speed;
-
+        this.polygon=this.createPolygon();
+        this.hit=this.isHit(roadBorders);
         this.sensor.update(roadBorders);
     }
+    isHit(roadBorders){
+        for(let i=0; i<roadBorders.length;i++){
+            if(plygonIntersects(this.polygon,roadBorders[i])){
+                return true;
+            }
+        }
+        return false;
+    }
+    // finding the edge points of the car
+    createPolygon(){
+        const points=[];
+        const rad = Math.hypot(this.width,this.height)/2;
+        const theta= Math.atan2(this.width,this.height);
+        points.push({
+            // top-right point
+            x: this.x-Math.sin(this.angle-theta)*rad,
+            y: this.y-Math.cos(this.angle-theta)*rad,
+        });
+        points.push({
+            
+            x: this.x-Math.sin(this.angle+theta)*rad,
+            y: this.y-Math.cos(this.angle+theta)*rad,
+        });
+        points.push({
+            
+            x: this.x-Math.sin(Math.PI+this.angle-theta)*rad,
+            y: this.y-Math.cos(Math.PI+this.angle-theta)*rad,
+        });
+        points.push({
+            
+            x: this.x-Math.sin(Math.PI+this.angle+theta)*rad,
+            y: this.y-Math.cos(Math.PI+this.angle+theta)*rad,
+        });
+
+        return points;
+    }
     draw(context){
-        context.save()
-        context.translate(this.x, this.y);
-        context.rotate(-this.angle);
-        context.beginPath();
-        context.rect(
-            -this.width/2,
-            -this.height/2,
-            this.width,
-            this.height
-        );
+        // context.save()
+        // context.translate(this.x, this.y);
+        // context.rotate(-this.angle);
+        // context.beginPath();
+        // context.rect(
+        //     -this.width/2,
+        //     -this.height/2,
+        //     this.width,
+        //     this.height
+        // );
         
+        // context.fill();
+        // context.restore();
+        //if the car is hit it will be red in color
+        if(this.hit){
+            context.fillStyle="red"
+        }else{
+            context.fillStyle="black"
+        }
+        // Now we can actually draw the polygon points 
+
+        context.beginPath();
+        context.moveTo(this.polygon[0].x,this.polygon[0].y);
+        
+        for(let i=1;i<this.polygon.length;i++){
+            context.lineTo(this.polygon[i].x,this.polygon[i].y);
+        }
         context.fill();
-        context.restore();
+        
         this.sensor.draw(context);
         
     }

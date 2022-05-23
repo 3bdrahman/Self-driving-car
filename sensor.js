@@ -10,17 +10,17 @@ class Sensor{
         this.rays=[];
         this.readings=[];
     }
-    update(roadBorders){
+    update(roadBorders,traffic){
       this.#castRays();
       this.readings=[];
       for(let i=0; i <this.rays.length;i++){
           this.readings.push(
-              this.getReading(this.rays[i],roadBorders)
+              this.getReading(this.rays[i],roadBorders, traffic)
           );
 
       }
     };
-    getReading(ray,roadBorders){
+    getReading(ray,roadBorders,traffic){
         let touches=[];
         for(let i =0;i<roadBorders.length;i++){
             // this intersection methon also return the offset ( how far the rouch is from
@@ -29,6 +29,16 @@ class Sensor{
             if(touch){
                 touches.push(touch);
             }
+        }
+        for(let i=0;i<traffic.length;i++){
+            for(let j=0; j<traffic[i].polygon.length;j++){
+                const trafficTouch = getIntersection(ray[0],ray[1],traffic[i].polygon[j], traffic[i].polygon[(j+1)%traffic[i].polygon.length]);
+                if(trafficTouch){
+                    touches.push(trafficTouch);
+                }
+            }
+            
+            
         }
         if(touches.length===0) return null;
         else{

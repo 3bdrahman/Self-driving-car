@@ -1,20 +1,26 @@
 class Car{
-    constructor(x,y,width,height){
+    constructor(x,y,width,height,controlType,maxSpeed=4){
         this.x=x;
         this.y=y;
         this.width=width;
         this.height=height;
         this.speed=0;
         this.acceleration=0.2;
-        this.maxSpeed=4;
+        this.maxSpeed=maxSpeed;
         this.angle=0;
         this.friction=0.05;
-        this.sensor=new Sensor(this);
-        this.controls=new Controls();
+        if(controlType == "control"){
+            this.sensor=new Sensor(this);
+        }
+        
+        this.controls=new Controls(controlType);
         this.hit=false;
     }
-    update(roadBorders){
+    update(roadBorders,traffic){
         console.log(this.angle);
+        //if the car is hit stop ie render useless
+        if(!this.hit){
+
         // car Physics
         // negative speed just denotes moving backwards
         if(this.controls.forward){
@@ -58,12 +64,21 @@ class Car{
         
         this.y-=Math.cos(this.angle)*this.speed;
         this.polygon=this.createPolygon();
-        this.hit=this.isHit(roadBorders);
-        this.sensor.update(roadBorders);
+        this.hit=this.isHit(roadBorders, traffic);
+        }
+        if(this.sensor){
+            this.sensor.update(roadBorders, traffic);
+        }
+        
     }
-    isHit(roadBorders){
+    isHit(roadBorders, traffic){
         for(let i=0; i<roadBorders.length;i++){
             if(plygonIntersects(this.polygon,roadBorders[i])){
+                return true;
+            }
+        }
+        for(let i=0; i<traffic.length;i++){
+            if(plygonIntersects(this.polygon,traffic[i].polygon)){
                 return true;
             }
         }
@@ -97,7 +112,7 @@ class Car{
 
         return points;
     }
-    draw(context){
+    draw(context, color){
         // context.save()
         // context.translate(this.x, this.y);
         // context.rotate(-this.angle);
@@ -115,7 +130,7 @@ class Car{
         if(this.hit){
             context.fillStyle="red"
         }else{
-            context.fillStyle="black"
+            context.fillStyle=color
         }
         // Now we can actually draw the polygon points 
 
@@ -126,8 +141,9 @@ class Car{
             context.lineTo(this.polygon[i].x,this.polygon[i].y);
         }
         context.fill();
-        
-        this.sensor.draw(context);
+        if(this.sensor){
+            this.sensor.draw(context);
+        }
         
     }
 }

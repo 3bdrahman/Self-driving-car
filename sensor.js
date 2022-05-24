@@ -1,7 +1,7 @@
 class Sensor{
     constructor(car){
         this.car = car;
-        this.rayCount=10;
+        this.rayCount=5;
         // range of sensor rays
         this.rayLength=200;
         //angle that spread the rays
@@ -68,7 +68,7 @@ class Sensor{
             };
             this.rays.push([start,end]);
         }
-      console.log(this.rays)
+    //   console.log(this.rays)
     }
     draw(context) {
         

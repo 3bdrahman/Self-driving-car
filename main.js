@@ -1,9 +1,11 @@
-const canvas = document.getElementById("canvas");
+const carCanvas = document.getElementById("carCanvas");
 
-canvas.width=300;
-
-const context = canvas.getContext("2d");
-const road = new Road(canvas.width/2,canvas.width* 0.9);
+carCanvas.width=300;
+const networkCanvas = document.getElementById("networkCanvas");
+networkCanvas.width=400;
+const carContext = carCanvas.getContext("2d");
+const networkContext = networkCanvas.getContext("2d");
+const road = new Road(carCanvas.width/2,carCanvas.width* 0.9);
 const car = new Car(road.getLaneCenter(1),100,30,50,"autopilot");
 const traffic=[
     new Car(road.getLaneCenter(1),-100,30,50, "dummy",3)
@@ -17,17 +19,21 @@ function animate(){
         traffic[i].update(road.borders,[]);
     }
     car.update(road.borders,traffic);
-    canvas.height=window.innerHeight;
+    carCanvas.height=window.innerHeight;
+    networkCanvas.height=window.innerHeight;
     //add effect of camera following the car as if the road is moving not the car
-    context.save();
-    context.translate(0,-car.y+canvas.height*0.7);
+    carContext.save();
+    carContext.translate(0,-car.y+carCanvas.height*0.7);
 
-    road.draw(context);
+    road.draw(carContext);
     for(let i=0;i<traffic.length;i++){
-        traffic[i].draw(context,"blue");
+        traffic[i].draw(carContext,"blue");
     }
-    car.draw(context, "purple");
+    car.draw(carContext, "purple");
 
-    context.restore();
+    carContext.restore();
+  
+    NetworkVisualizer.drawNetwork(networkContext,car.autoPilot);
+    
     requestAnimationFrame(animate);
 }

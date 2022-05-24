@@ -56,3 +56,10 @@ function plygonIntersects(polygon, borders){
     }
     return false;
 }
+function getRGB(val){
+    const alpha = Math.abs(val);
+    const Red =val <0?0 :255;
+    const Green = Red;
+    const Blue = val >0?0:255;
+    return"rgba(" + Red + ","+Green+","+Blue+","+alpha+")";
+}

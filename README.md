@@ -27,3 +27,5 @@ implementing the car, controls, road, sensor and the canvas.
 - build visualizer class that draws a given network on specified canvas
 - It has 2 main functions :<br> 1 drawLevel : draws specified level of the network: inputs , outputs, weights, biases.<br>
                             2 drawNetwork: uses drawLevel iteratively to draw the whole network.
+
+![](3.00.gif)

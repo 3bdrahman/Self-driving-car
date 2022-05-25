@@ -5,12 +5,29 @@ class NetworkVisualizer{
         const top=margin;
         const width=context.canvas.width-margin*2;
         const height=context.canvas.height-margin*2;
-        NetworkVisualizer.drawLevel(context,network.levels[0],
-            left,top,width,height);
 
+        // NetworkVisualizer.drawLevel(context,network.levels[0],
+        //     left,top,width,height);
+        // the height of every level = height of canvas / the number of
+        // leves in the networl
+        const levelHeight=height/network.levels.length;
+        for(let i=network.levels.length-1; i>=0;i--){
+            // starting after the margin
+            const levelTop=top+
+            lerp(
+                height-levelHeight,
+                0,
+                network.levels.length ==1 ? 0.5 : i/(network.levels.length)
+            );
+            context.setLineDash([7,3]);
+            NetworkVisualizer.drawLevel(context,network.levels[i],left,levelTop,
+                width,levelHeight,
+                i==network.levels.length-1? ['^','<--','-->','v']
+                :[]);
+        }
         
     }
-    static drawLevel(context,level,left,top,width,height){
+    static drawLevel(context,level,left,top,width,height, labels){
         const right = left+width;
         const bottom=top+height;
         const radius= 20;
@@ -51,6 +68,17 @@ class NetworkVisualizer{
             context.setLineDash([3,3]);
             context.stroke();
             context.setLineDash([]);
+            if(labels[i]){
+                context.beginPath();
+                context.textAlign="center";
+                context.textBaseLine="large";
+                context.fillStyle="black"
+                context.strokeStyle="red";
+                context.font=(radius * 2.8) + "px";
+                context.fillText(labels[i],x,top);
+                context.lineWidth=6;
+                context.strokeText(labels[i],x,top);
+            }
         }
    
     }

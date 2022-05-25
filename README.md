@@ -25,5 +25,5 @@ implementing the car, controls, road, sensor and the canvas.
 ### Next step: build Neural Network Visualizer
 - create a new canvas to demenstrate how the network functions
 - build visualizer class that draws a given network on specified canvas
-- It has 2 main functions : 1 drawLevel : draws specified level of the network: inputs , outputs, weights, biases.
+- It has 2 main functions : 1 drawLevel : draws specified level of the network: inputs , outputs, weights, biases.<br>
                             2 drawNetwork: uses drawLevel iteratively to draw the whole network.

@@ -129,7 +129,7 @@ class Car{
 
         return points;
     }
-    draw(context, color){
+    draw(context, color,hasSensors=false){
         // context.save()
         // context.translate(this.x, this.y);
         // context.rotate(-this.angle);
@@ -158,7 +158,7 @@ class Car{
             context.lineTo(this.polygon[i].x,this.polygon[i].y);
         }
         context.fill();
-        if(this.sensor){
+        if(this.sensor&&hasSensors){
             this.sensor.draw(context);
         }
         

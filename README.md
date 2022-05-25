@@ -19,3 +19,5 @@ implementing the car, controls, road, sensor and the canvas.
 - add "autopilot" control type to the controls class.
 - the network starts by giving random weights and biases, and consequently make random moves that cause the car to crash.
 - this problem can be fixed with parallelization ie having many instances of the car and a lot of scenarios. 
+
+![](2.00.gif)

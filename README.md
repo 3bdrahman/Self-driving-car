@@ -14,8 +14,8 @@ implementing the car, controls, road, sensor and the canvas.
 ![](1.00.gif)
 
 ## 2nd milestone:
--build neural network class that consists of different feed-forward levels
--use the class and bind the sensors readings as inputs to the first level of the network
--add "autopilot" control type to the controls class.
--the network starts by giving random weights and biases, and consequently make random moves that cause the car to crash.
--this problem can be fixed with parallelization ie having many instances of the car and a lot of scenarios. 
+- build neural network class that consists of different feed-forward levels
+- use the class and bind the sensors readings as inputs to the first level of the network
+- add "autopilot" control type to the controls class.
+- the network starts by giving random weights and biases, and consequently make random moves that cause the car to crash.
+- this problem can be fixed with parallelization ie having many instances of the car and a lot of scenarios. 

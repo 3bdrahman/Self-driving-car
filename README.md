@@ -46,3 +46,5 @@ implementing the car, controls, road, sensor and the canvas.
 - generate more cars in traffic as more testing to our model. 
 - fix lable issue in the neural network visualizer. 
 - Add save and destroy buttons to enable storing the autopilot(neural network). 
+
+![](6.00.gif) 

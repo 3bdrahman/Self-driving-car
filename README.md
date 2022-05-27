@@ -40,3 +40,8 @@ implementing the car, controls, road, sensor and the canvas.
 ==> Parallelization & Mutation
  
 ![](4.00.gif) ![](5.00.gif) 
+
+## 4th milestone: Final touches and testing.
+- Design car png picture and then generate random colors for traffic cars using masking technique.
+- generate more cars in traffic as more testing to our model. 
+- fix lable issue in the neural network visualizer. 

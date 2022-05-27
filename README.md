@@ -37,3 +37,4 @@ implementing the car, controls, road, sensor and the canvas.
 - Add mutation function to the neural network class, so you can mutate by a random yet ranged amount both the weights and biases of the network.
 - Whenever you get a better performing network, save it until you reach a model that knows how to avoid collisions.
  
+![Parallelization](4.00.gif)

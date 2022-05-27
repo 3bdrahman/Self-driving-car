@@ -45,3 +45,4 @@ implementing the car, controls, road, sensor and the canvas.
 - Design car png picture and then generate random colors for traffic cars using masking technique.
 - generate more cars in traffic as more testing to our model. 
 - fix lable issue in the neural network visualizer. 
+- Add save and destroy buttons to enable storing the autopilot(neural network). 

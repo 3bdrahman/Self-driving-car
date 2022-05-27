@@ -22,7 +22,7 @@ class NetworkVisualizer{
             context.setLineDash([7,3]);
             NetworkVisualizer.drawLevel(context,network.levels[i],left,levelTop,
                 width,levelHeight,
-                i==network.levels.length-1? ['^','<--','-->','v']
+                i==network.levels.length-1? ['^','-->','<--','v']
                 :[]);
         }
         

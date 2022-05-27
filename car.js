@@ -1,5 +1,5 @@
 class Car{
-    constructor(x,y,width,height,controlType,maxSpeed=4){
+    constructor(x,y,width,height,controlType,maxSpeed=4, color="blue"){
         this.x=x;
         this.y=y;
         this.width=width;
@@ -20,6 +20,19 @@ class Car{
         
         this.controls=new Controls(controlType);
         this.hit=false;
+        this.img=new Image()
+        this.img.src="car.png";
+        this.mask=document.createElement("canvas");
+        this.mask.width=width;
+        this.mask.height=height;
+        const maskContext=this.mask.getContext("2d");
+        this.img.onload=()=>{
+            maskContext.fillStyle=color,
+            maskContext.rect(0,0,this.width,this.height);
+            maskContext.fill();
+            maskContext.globalCompositeOperation="destination-atop";
+            maskContext.drawImage(this.img,0,0,this.width,this.height)
+        }
     }
     update(roadBorders,traffic){
         // console.log(this.angle);
@@ -77,7 +90,7 @@ class Car{
                 s=>s==null?0:1-s.offset
             );
              const outputs=NeuralNetwork.feedForward(offsets,this.autoPilot);
-             console.log(outputs);
+            //  console.log(outputs);
              if(this.useAutoPilot){
                  this.controls.forward=outputs[0];
                  this.controls.left=outputs[1];
@@ -143,21 +156,41 @@ class Car{
         
         // context.fill();
         // context.restore();
-        //if the car is hit it will be red in color
-        if(this.hit){
-            context.fillStyle="red"
-        }else{
-            context.fillStyle=color
-        }
-        // Now we can actually draw the polygon points 
 
-        context.beginPath();
-        context.moveTo(this.polygon[0].x,this.polygon[0].y);
+        //if the car is hit it will be red in color
+        // if(this.hit){
+        //     context.fillStyle="red"
+        // }else{
+        //     context.fillStyle=color
+        // }
+        // // Now we can actually draw the polygon points 
+
+        // context.beginPath();
+        // context.moveTo(this.polygon[0].x,this.polygon[0].y);
         
-        for(let i=1;i<this.polygon.length;i++){
-            context.lineTo(this.polygon[i].x,this.polygon[i].y);
+        // for(let i=1;i<this.polygon.length;i++){
+        //     context.lineTo(this.polygon[i].x,this.polygon[i].y);
+        // }
+        // context.fill();
+        // add image of the car instead
+        context.save();
+        context.translate(this.x,this.y);
+        context.rotate(-this.angle);
+        if(!this.hit){
+            context.drawImage(this.mask,
+                -this.width/2,
+                -this.height/2,
+                this.width,
+                this.height);
+                context.globalCompositeOperation="multiply";
         }
-        context.fill();
+        
+            context.drawImage(this.img,
+                -this.width/2,
+                -this.height/2,
+                this.width,
+                this.height);
+            context.restore();
         if(this.sensor&&hasSensors){
             this.sensor.draw(context);
         }

@@ -3,9 +3,15 @@
     <head>
         <title>Self-driving car</title>
         <link rel="stylesheet" href="styles.css">
+        
     </head>
     <body>
         <canvas id="carCanvas"></canvas>
+        <div id="storageButtons">
+            <button onclick="save()">Save</button>
+            <button onclick="destroy()">Destroy</button>
+            
+        </div>
         <canvas id="networkCanvas"></canvas>
         <script src="networkVisualizer.js"></script>
         <script src="network.js"></script>

@@ -55,4 +55,5 @@ implementing the car, controls, road, sensor and the canvas.
 - make staying in lane and driving in lanes centers rewarding for the model
 - (advanced) make curves in lanes. 
 
-## Please use Firefox instead of google chrome, and download the project for a way better experience. The animations will be smoother and better if you download the project. 
+## Please use Firefox instead of google chrome, and download the project for a way better experience. The animations will be smoother and better if you download the project.
+## The project is hosted at https://3bdrahman.github.io/Self-driving-car/

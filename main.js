@@ -6,7 +6,7 @@ networkCanvas.width = 400;
 const carContext = carCanvas.getContext("2d");
 const networkContext = networkCanvas.getContext("2d");
 const road = new Road(carCanvas.width / 2, carCanvas.width * 0.9);
-const num =1000;
+const num =100;
 const cars = generateDuplicates(num)
 const traffic = [
     new Car(road.getLaneCenter(1), -100, 30, 50, "dummy", 2, getRandomColor()),
@@ -44,7 +44,7 @@ const traffic = [
     new Car(road.getLaneCenter(2), -2200, 30, 50, "dummy", 2, getRandomColor()),
 ];
 let optimalCar = cars[0];
-if (localStorage.getItem("bestAutopilot")) {
+if (sessionStorage.getItem("bestAutopilot")) {
     for (let i = 0; i < cars.length; i++) {
         cars[i].autoPilot = JSON.parse(localStorage.getItem("bestAutopilot"));
         if (i != 0) {
@@ -65,7 +65,7 @@ function generateDuplicates(num) {
 }
 //saving the neural network of the most optimal car
 function save() {
-    localStorage.setItem("bestAutopilot",
+    sessionStorage.setItem("bestAutopilot",
         JSON.stringify(optimalCar.autoPilot));
 }
 function destroy() {

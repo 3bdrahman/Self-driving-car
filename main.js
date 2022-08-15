@@ -6,7 +6,7 @@ networkCanvas.width = 400;
 const carContext = carCanvas.getContext("2d");
 const networkContext = networkCanvas.getContext("2d");
 const road = new Road(carCanvas.width / 2, carCanvas.width * 0.9);
-const num =60;
+const num =100;
 const cars = generateDuplicates(num)
 const traffic = [
     new Car(road.getLaneCenter(1), -100, 30, 50, "dummy", 2, getRandomColor()),

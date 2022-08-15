@@ -54,3 +54,5 @@ implementing the car, controls, road, sensor and the canvas.
 - make the traffic generation more realistic (traffic cars can change speed) 
 - make staying in lane and driving in lanes centers rewarding for the model
 - (advanced) make curves in lanes. 
+
+## Please use Firefox instead of google chrome, and download the project for a way better experience. The animations will be smoother and better if you download the project. 

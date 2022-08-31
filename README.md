@@ -11,7 +11,7 @@ implementing the car, controls, road, sensor and the canvas.
 - Detect collision against the car's geometric segments and other objects 
 - Create dummy cars to represent random traffic 
 
-![](1.00.gif)
+![](gifs/1.00.gif)
 
 ## 2nd milestone: build neural network 
 - Build neural network class that consists of different feed-forward levels
@@ -20,7 +20,7 @@ implementing the car, controls, road, sensor and the canvas.
 - The network starts by giving random weights and biases, and consequently make random moves that cause the car to crash.
 - This problem can be fixed with parallelization ie having many instances of the car and a lot of scenarios. 
 
-![](2.00.gif)
+![](gifs/2.00.gif)
 
 ### Next step: build Neural Network Visualizer
 - Create a new canvas to demenstrate how the network functions
@@ -28,7 +28,7 @@ implementing the car, controls, road, sensor and the canvas.
 - It has 2 main functions :<br> 1 drawLevel : draws specified level of the network: inputs , outputs, weights, biases.<br>
                             2 drawNetwork: uses drawLevel iteratively to draw the whole network.
 
-![](3.00.gif)
+![](gifs/3.00.gif)
 
 ## 3rd milestone: Parallelization, mutation, and some tuning.
 - Create a lot of instances of the car object (eg 1000) all with random neural networks.
@@ -39,7 +39,7 @@ implementing the car, controls, road, sensor and the canvas.
 
 ==> Parallelization & Mutation
  
-![](4.00.gif) ![](5.00.gif) 
+![](gifs/4.00.gif) ![](gifs/5.00.gif) 
 
 ## 4th milestone: Final touches and testing.
 - Design car png picture and then generate random colors for traffic cars using masking technique.
@@ -47,7 +47,7 @@ implementing the car, controls, road, sensor and the canvas.
 - fix lable issue in the neural network visualizer. 
 - Add save and destroy buttons to enable storing the autopilot(neural network). 
 
-![](6.00.gif) 
+![](gifs/6.00.gif) 
 
 ## Furtue plans:
 - Add driving modes to the autopilot (speeding, conservative) driving.

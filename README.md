@@ -49,7 +49,7 @@ implementing the car, controls, road, sensor and the canvas.
 
 ![](gifs/6.00.gif) 
 
-## Furtue plans:
+## Furtue Recommendations:
 - Add driving modes to the autopilot (speeding, conservative) driving.
 - make the traffic generation more realistic (traffic cars can change speed) 
 - make staying in lane and driving in lanes centers rewarding for the model

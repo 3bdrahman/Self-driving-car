@@ -75,6 +75,15 @@ if(this.speed!=0){
         if(Math.abs(this.speed) < this.friction){
             this.speed=0;
         }
+        
+        if(this.speed != 0 && !this.controls.left && !this.controls.right){
+            if(this.angle > 0){
+                this.angle = Math.max(0, this.angle - 0.02);
+            } else if(this.angle < 0){
+                this.angle = Math.min(0, this.angle + 0.02);
+            }
+        }
+        
         this.x-=Math.sin(this.angle)*this.speed;
         
         this.y-=Math.cos(this.angle)*this.speed;

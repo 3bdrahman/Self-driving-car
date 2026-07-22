@@ -30,10 +30,9 @@ for (let block = 0; block < 12; block++) {
 }
 
 let optimalCar = cars[0];
-const startX = cars.map(c => c.x);
-const laneReward = new Array(cars.length).fill(0);
+const laneSet = cars.map(() => new Set());
+const cumSpeed = new Array(cars.length).fill(0);
 const brakeFrames = new Array(cars.length).fill(0);
-let prevSpeed = cars.map(c => c.speed);
 
 if (sessionStorage.getItem("bestAutopilot") && !localStorage.getItem("bestAutopilot")) {
     sessionStorage.removeItem("bestAutopilot");
@@ -93,18 +92,20 @@ function animate(time) {
     for (let i = 0; i < cars.length; i++) {
         cars[i].update(road.borders, traffic);
         if (!cars[i].hit) {
-            laneReward[i] = Math.abs(cars[i].x - startX[i]);
+            const laneIdx = Math.round((cars[i].x - road.getLaneCenter(0)) / road.laneWidth);
+            laneSet[i].add(Math.max(0, Math.min(laneIdx, road.numLanes - 1)));
+            cumSpeed[i] += cars[i].speed;
             if (cars[i].controls.backwards && cars[i].speed > 0) {
                 brakeFrames[i]++;
             }
         }
-        prevSpeed[i] = cars[i].speed;
     }
     const aliveIndices = cars.map((c, i) => c.hit ? -1 : i).filter(i => i >= 0);
     if (aliveIndices.length > 0) {
         let bestI = aliveIndices[0];
         const fitness = (i) => {
-            return cars[i].y + 2.0 * laneReward[i] + 1.5 * brakeFrames[i];
+            const uniqueLanes = laneSet[i].size;
+            return cars[i].y + 5.0 * uniqueLanes + 0.3 * cumSpeed[i] - 2.0 * brakeFrames[i];
         };
         let bestScore = fitness(bestI);
         for (const i of aliveIndices) {

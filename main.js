@@ -21,25 +21,17 @@ function spawnTrafficBlock(centerY) {
         const lane = Math.floor(Math.random() * road.numLanes);
         const y = centerY - 600 - Math.random() * 1000;
         const speedTier = Math.random();
-        let maxSpeed, behavior;
+        let maxSpeed;
         if (speedTier < 0.25) {
-            maxSpeed = 1.0 + Math.random() * 0.8;  // slow: 1.0-1.8
-            behavior = "crawler";
+            maxSpeed = 1.0 + Math.random() * 0.8;
         } else if (speedTier < 0.55) {
-            maxSpeed = 2.0 + Math.random() * 1.0;  // normal: 2.0-3.0
-            behavior = "normal";
+            maxSpeed = 2.0 + Math.random() * 1.0;
         } else if (speedTier < 0.85) {
-            maxSpeed = 3.0 + Math.random() * 1.0;  // fast: 3.0-4.0
-            behavior = "fast";
+            maxSpeed = 3.0 + Math.random() * 1.0;
         } else {
-            maxSpeed = 4.0 + Math.random() * 1.5;  // speeder: 4.0-5.5
-            behavior = "speeder";
+            maxSpeed = 4.0 + Math.random() * 1.5;
         }
-        const car = new Car(road.getLaneCenter(lane), y, 30, 50, "dummy", maxSpeed, getRandomColor());
-        car.trafficBehavior = behavior;
-        car.laneChangeTimer = Math.random() * 300;
-        car.targetLane = lane;
-        traffic.push(car);
+        traffic.push(new Car(road.getLaneCenter(lane), y, 30, 50, "dummy", maxSpeed, getRandomColor()));
     }
 }
 
@@ -109,36 +101,7 @@ function animate(time) {
     }
 
     for (let i = 0; i < traffic.length; i++) {
-        const t = traffic[i];
-        if (!t.hit) {
-            t.laneChangeTimer--;
-            if (t.laneChangeTimer <= 0) {
-                const currentLane = Math.round((t.x - road.getLaneCenter(0)) / road.laneWidth);
-                const clamped = Math.max(0, Math.min(currentLane, road.numLanes - 1));
-                const shouldChange = Math.random() < 0.008;
-                if (shouldChange && road.numLanes > 1) {
-                    const directions = [-1, 1].filter(d => clamped + d >= 0 && clamped + d < road.numLanes);
-                    if (directions.length > 0) {
-                        t.targetLane = clamped + directions[Math.floor(Math.random() * directions.length)];
-                    }
-                }
-                t.laneChangeTimer = 150 + Math.random() * 400;
-            }
-            if (t.targetLane !== undefined) {
-                const currentLane = Math.round((t.x - road.getLaneCenter(0)) / road.laneWidth);
-                const clamped = Math.max(0, Math.min(currentLane, road.numLanes - 1));
-                if (clamped !== t.targetLane) {
-                    const dir = t.targetLane > clamped ? 1 : -1;
-                    t.controls.left = dir === -1;
-                    t.controls.right = dir === 1;
-                    t.controls.forward = true;
-                    t.controls.backwards = false;
-                } else {
-                    t.targetLane = undefined;
-                }
-            }
-        }
-        t.update(road.borders, []);
+        traffic[i].update(road.borders, []);
     }
 
     for (let i = 0; i < cars.length; i++) {

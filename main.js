@@ -46,7 +46,6 @@ const sameLaneFrames = new Array(cars.length).fill(0);
 const highSpeedFrames = new Array(cars.length).fill(0);
 const maxSpeedFrames = new Array(cars.length).fill(0);
 const brakeFrames = new Array(cars.length).fill(0);
-const steeringFrames = new Array(cars.length).fill(0);
 const stopFrames = new Array(cars.length).fill(0);
 const backwardsFrames = new Array(cars.length).fill(0);
 let prevLane = cars.map(() => -1);
@@ -129,8 +128,6 @@ function animate(time) {
             if (cars[i].controls.backwards && cars[i].speed > 0) brakeFrames[i]++;
             if (Math.abs(cars[i].speed) < 0.3) stopFrames[i]++;
             if (cars[i].speed < -0.1) backwardsFrames[i]++;
-            if (cars[i].controls.left) steeringFrames[i]++;
-            if (cars[i].controls.right) steeringFrames[i]++;
         }
     }
     const aliveIndices = cars.map((c, i) => c.hit ? -1 : i).filter(i => i >= 0);
@@ -144,8 +141,7 @@ function animate(time) {
             const sameLanePenalty = 0.15 * sameLaneFrames[i];
             const stopPenalty = 30.0 * stopFrames[i];
             const backwardsPenalty = 50.0 * backwardsFrames[i];
-            const steeringReward = 0.5 * steeringFrames[i];
-            return distance + laneChangeBonus + speedBonus - brakePenalty - sameLanePenalty - stopPenalty - backwardsPenalty + steeringReward;
+            return distance + laneChangeBonus + speedBonus - brakePenalty - sameLanePenalty - stopPenalty - backwardsPenalty;
         };
         let bestScore = fitness(bestI);
         for (const i of aliveIndices) {

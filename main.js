@@ -32,8 +32,10 @@ for (let block = 0; block < 12; block++) {
 let optimalCar = cars[0];
 const laneSet = cars.map(() => new Set());
 const laneChanges = new Array(cars.length).fill(0);
+const sameLaneFrames = new Array(cars.length).fill(0);
 const highSpeedFrames = new Array(cars.length).fill(0);
 const brakeFrames = new Array(cars.length).fill(0);
+let prevLane = cars.map(() => -1);
 
 if (sessionStorage.getItem("bestAutopilot") && !localStorage.getItem("bestAutopilot")) {
     sessionStorage.removeItem("bestAutopilot");
@@ -95,10 +97,19 @@ function animate(time) {
         if (!cars[i].hit) {
             const laneIdx = Math.round((cars[i].x - road.getLaneCenter(0)) / road.laneWidth);
             const clamped = Math.max(0, Math.min(laneIdx, road.numLanes - 1));
+            
             if (!laneSet[i].has(clamped)) {
                 laneChanges[i]++;
             }
             laneSet[i].add(clamped);
+
+            if (clamped === prevLane[i]) {
+                sameLaneFrames[i]++;
+            } else {
+                sameLaneFrames[i] = 0;
+            }
+            prevLane[i] = clamped;
+
             if (cars[i].speed > 3.0) {
                 highSpeedFrames[i]++;
             }
@@ -111,12 +122,17 @@ function animate(time) {
     if (aliveIndices.length > 0) {
         let bestI = aliveIndices[0];
         const fitness = (i) => {
-            return cars[i].y + 5.0 * laneChanges[i] + 0.3 * highSpeedFrames[i] - 2.0 * brakeFrames[i];
+            const distance = -cars[i].y;
+            const laneChangeBonus = 25.0 * laneChanges[i];
+            const speedBonus = 1.0 * highSpeedFrames[i];
+            const brakePenalty = 5.0 * brakeFrames[i];
+            const sameLanePenalty = 0.05 * sameLaneFrames[i];
+            return distance + laneChangeBonus + speedBonus - brakePenalty - sameLanePenalty;
         };
         let bestScore = fitness(bestI);
         for (const i of aliveIndices) {
             const score = fitness(i);
-            if (score < bestScore) { bestScore = score; bestI = i; }
+            if (score > bestScore) { bestScore = score; bestI = i; }
         }
         optimalCar = cars[bestI];
     }

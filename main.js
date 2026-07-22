@@ -11,22 +11,40 @@ const cars = generateDuplicates(num);
 
 const SPAWN_AHEAD = 1500;
 const CULL_BEHIND = 1500;
-const SPAWN_TARGET = 40;
-const SPAWN_GAP = 250;
+const SPAWN_TARGET = 50;
+const SPAWN_GAP = 200;
 const traffic = [];
 
 function spawnTrafficBlock(centerY) {
-    const count = 1 + Math.floor(Math.random() * 3);
+    const count = 1 + Math.floor(Math.random() * 4);
     for (let k = 0; k < count; k++) {
         const lane = Math.floor(Math.random() * road.numLanes);
-        const y = centerY - 800 - Math.random() * 1200;
-        const maxSpeed = 1.5 + Math.random() * 2.5;
-        traffic.push(new Car(road.getLaneCenter(lane), y, 30, 50, "dummy", maxSpeed, getRandomColor()));
+        const y = centerY - 600 - Math.random() * 1000;
+        const speedTier = Math.random();
+        let maxSpeed, behavior;
+        if (speedTier < 0.25) {
+            maxSpeed = 1.0 + Math.random() * 0.8;  // slow: 1.0-1.8
+            behavior = "crawler";
+        } else if (speedTier < 0.55) {
+            maxSpeed = 2.0 + Math.random() * 1.0;  // normal: 2.0-3.0
+            behavior = "normal";
+        } else if (speedTier < 0.85) {
+            maxSpeed = 3.0 + Math.random() * 1.0;  // fast: 3.0-4.0
+            behavior = "fast";
+        } else {
+            maxSpeed = 4.0 + Math.random() * 1.5;  // speeder: 4.0-5.5
+            behavior = "speeder";
+        }
+        const car = new Car(road.getLaneCenter(lane), y, 30, 50, "dummy", maxSpeed, getRandomColor());
+        car.trafficBehavior = behavior;
+        car.laneChangeTimer = Math.random() * 300;
+        car.targetLane = lane;
+        traffic.push(car);
     }
 }
 
-for (let block = 0; block < 12; block++) {
-    spawnTrafficBlock(100 - block * 400);
+for (let block = 0; block < 15; block++) {
+    spawnTrafficBlock(100 - block * 350);
 }
 
 let optimalCar = cars[0];
@@ -34,6 +52,7 @@ const laneSet = cars.map(() => new Set());
 const laneChanges = new Array(cars.length).fill(0);
 const sameLaneFrames = new Array(cars.length).fill(0);
 const highSpeedFrames = new Array(cars.length).fill(0);
+const maxSpeedFrames = new Array(cars.length).fill(0);
 const brakeFrames = new Array(cars.length).fill(0);
 let prevLane = cars.map(() => -1);
 
@@ -47,7 +66,7 @@ if (savedBrain) {
         for (let i = 0; i < cars.length; i++) {
             cars[i].autoPilot = JSON.parse(JSON.stringify(parsedBrain));
             if (i != 0) {
-                NeuralNetwork.mutate(cars[i].autoPilot, 0.3);
+                NeuralNetwork.mutate(cars[i].autoPilot, 0.35);
             }
         }
     }
@@ -81,7 +100,7 @@ function animate(time) {
     for (let i = 0; i < traffic.length; i++) {
         if (traffic[i].y < frontmostY) frontmostY = traffic[i].y;
     }
-    let safety = 8;
+    let safety = 10;
     while (traffic.length < SPAWN_TARGET && safety-- > 0) {
         const centerY = (frontmostY === Infinity ? optimalY - 800 : frontmostY - SPAWN_GAP);
         spawnTrafficBlock(centerY);
@@ -89,7 +108,36 @@ function animate(time) {
     }
 
     for (let i = 0; i < traffic.length; i++) {
-        traffic[i].update(road.borders, []);
+        const t = traffic[i];
+        if (!t.hit) {
+            t.laneChangeTimer--;
+            if (t.laneChangeTimer <= 0) {
+                const currentLane = Math.round((t.x - road.getLaneCenter(0)) / road.laneWidth);
+                const clamped = Math.max(0, Math.min(currentLane, road.numLanes - 1));
+                const shouldChange = Math.random() < 0.008;
+                if (shouldChange && road.numLanes > 1) {
+                    const directions = [-1, 1].filter(d => clamped + d >= 0 && clamped + d < road.numLanes);
+                    if (directions.length > 0) {
+                        t.targetLane = clamped + directions[Math.floor(Math.random() * directions.length)];
+                    }
+                }
+                t.laneChangeTimer = 150 + Math.random() * 400;
+            }
+            if (t.targetLane !== undefined) {
+                const currentLane = Math.round((t.x - road.getLaneCenter(0)) / road.laneWidth);
+                const clamped = Math.max(0, Math.min(currentLane, road.numLanes - 1));
+                if (clamped !== t.targetLane) {
+                    const dir = t.targetLane > clamped ? 1 : -1;
+                    t.controls.left = dir === -1;
+                    t.controls.right = dir === 1;
+                    t.controls.forward = true;
+                    t.controls.backwards = false;
+                } else {
+                    t.targetLane = undefined;
+                }
+            }
+        }
+        t.update(road.borders, []);
     }
 
     for (let i = 0; i < cars.length; i++) {
@@ -110,12 +158,9 @@ function animate(time) {
             }
             prevLane[i] = clamped;
 
-            if (cars[i].speed > 3.0) {
-                highSpeedFrames[i]++;
-            }
-            if (cars[i].controls.backwards && cars[i].speed > 0) {
-                brakeFrames[i]++;
-            }
+            if (cars[i].speed > 3.0) highSpeedFrames[i]++;
+            if (cars[i].speed > cars[i].maxSpeed * 0.95) maxSpeedFrames[i]++;
+            if (cars[i].controls.backwards && cars[i].speed > 0) brakeFrames[i]++;
         }
     }
     const aliveIndices = cars.map((c, i) => c.hit ? -1 : i).filter(i => i >= 0);
@@ -123,10 +168,10 @@ function animate(time) {
         let bestI = aliveIndices[0];
         const fitness = (i) => {
             const distance = -cars[i].y;
-            const laneChangeBonus = 25.0 * laneChanges[i];
-            const speedBonus = 1.0 * highSpeedFrames[i];
-            const brakePenalty = 5.0 * brakeFrames[i];
-            const sameLanePenalty = 0.05 * sameLaneFrames[i];
+            const laneChangeBonus = 30.0 * laneChanges[i];
+            const speedBonus = 1.5 * highSpeedFrames[i] + 3.0 * maxSpeedFrames[i];
+            const brakePenalty = 8.0 * brakeFrames[i];
+            const sameLanePenalty = 0.08 * sameLaneFrames[i];
             return distance + laneChangeBonus + speedBonus - brakePenalty - sameLanePenalty;
         };
         let bestScore = fitness(bestI);

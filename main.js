@@ -54,6 +54,7 @@ const sameLaneFrames = new Array(cars.length).fill(0);
 const highSpeedFrames = new Array(cars.length).fill(0);
 const maxSpeedFrames = new Array(cars.length).fill(0);
 const brakeFrames = new Array(cars.length).fill(0);
+const steeringFrames = new Array(cars.length).fill(0);
 let prevLane = cars.map(() => -1);
 
 if (sessionStorage.getItem("bestAutopilot") && !localStorage.getItem("bestAutopilot")) {
@@ -76,7 +77,7 @@ animate();
 function generateDuplicates(num) {
     const cars = [];
     for (let i = 0; i <= num; i++) {
-        cars.push(new Car(road.getLaneCenter(1), 100, 30, 50, "autopilot"));
+        cars.push(new Car(road.getLaneCenter(1), 100, 30, 50, "autopilot", 7.0));
     }
     return cars;
 }
@@ -161,6 +162,8 @@ function animate(time) {
             if (cars[i].speed > 3.0) highSpeedFrames[i]++;
             if (cars[i].speed > cars[i].maxSpeed * 0.95) maxSpeedFrames[i]++;
             if (cars[i].controls.backwards && cars[i].speed > 0) brakeFrames[i]++;
+            if (cars[i].controls.left) steeringFrames[i]++;
+            if (cars[i].controls.right) steeringFrames[i]++;
         }
     }
     const aliveIndices = cars.map((c, i) => c.hit ? -1 : i).filter(i => i >= 0);
@@ -168,11 +171,12 @@ function animate(time) {
         let bestI = aliveIndices[0];
         const fitness = (i) => {
             const distance = -cars[i].y;
-            const laneChangeBonus = 30.0 * laneChanges[i];
-            const speedBonus = 1.5 * highSpeedFrames[i] + 3.0 * maxSpeedFrames[i];
-            const brakePenalty = 8.0 * brakeFrames[i];
-            const sameLanePenalty = 0.08 * sameLaneFrames[i];
-            return distance + laneChangeBonus + speedBonus - brakePenalty - sameLanePenalty;
+            const laneChangeBonus = 50.0 * laneChanges[i];
+            const speedBonus = 2.0 * highSpeedFrames[i] + 4.0 * maxSpeedFrames[i];
+            const brakePenalty = 12.0 * brakeFrames[i];
+            const sameLanePenalty = 0.15 * sameLaneFrames[i];
+            const steeringReward = 0.5 * steeringFrames[i];
+            return distance + laneChangeBonus + speedBonus - brakePenalty - sameLanePenalty + steeringReward;
         };
         let bestScore = fitness(bestI);
         for (const i of aliveIndices) {

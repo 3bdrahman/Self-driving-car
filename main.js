@@ -30,14 +30,9 @@ for (let block = 0; block < 12; block++) {
 }
 
 let optimalCar = cars[0];
-const laneDist = new Array(cars.length).fill(0);
-const speedDelta = new Array(cars.length).fill(0);
-const topSpeedFrames = new Array(cars.length).fill(0);
+const startX = cars.map(c => c.x);
+const laneReward = new Array(cars.length).fill(0);
 const brakeFrames = new Array(cars.length).fill(0);
-const speedSum = new Array(cars.length).fill(0);
-const speedSumSq = new Array(cars.length).fill(0);
-const speedN = new Array(cars.length).fill(0);
-let prevX = cars.map(c => c.x);
 let prevSpeed = cars.map(c => c.speed);
 
 if (sessionStorage.getItem("bestAutopilot") && !localStorage.getItem("bestAutopilot")) {
@@ -61,7 +56,6 @@ function generateDuplicates(num) {
     const cars = [];
     for (let i = 0; i <= num; i++) {
         cars.push(new Car(road.getLaneCenter(1), 100, 30, 50, "autopilot"));
-
     }
     return cars;
 }
@@ -99,34 +93,18 @@ function animate(time) {
     for (let i = 0; i < cars.length; i++) {
         cars[i].update(road.borders, traffic);
         if (!cars[i].hit) {
-            laneDist[i] += Math.abs(cars[i].x - prevX[i]);
-            speedDelta[i] += Math.abs(cars[i].speed - prevSpeed[i]);
-            if (cars[i].speed > cars[i].maxSpeed * 0.9) {
-                topSpeedFrames[i]++;
-            }
+            laneReward[i] = Math.abs(cars[i].x - startX[i]);
             if (cars[i].controls.backwards && cars[i].speed > 0) {
                 brakeFrames[i]++;
             }
-            const s = cars[i].speed;
-            speedSum[i] += s;
-            speedSumSq[i] += s * s;
-            speedN[i]++;
         }
-        prevX[i] = cars[i].x;
         prevSpeed[i] = cars[i].speed;
     }
     const aliveIndices = cars.map((c, i) => c.hit ? -1 : i).filter(i => i >= 0);
     if (aliveIndices.length > 0) {
         let bestI = aliveIndices[0];
         const fitness = (i) => {
-            const mean = speedN[i] > 0 ? speedSum[i] / speedN[i] : 0;
-            const variance = speedN[i] > 0 ? (speedSumSq[i] / speedN[i]) - mean * mean : 0;
-            return cars[i].y
-                - 1.0 * laneDist[i]
-                - 3.0 * speedDelta[i]
-                - 0.5 * topSpeedFrames[i]
-                - 50.0 * variance
-                + 1.5 * brakeFrames[i];
+            return cars[i].y + 2.0 * laneReward[i] + 1.5 * brakeFrames[i];
         };
         let bestScore = fitness(bestI);
         for (const i of aliveIndices) {
@@ -149,9 +127,6 @@ function animate(time) {
     }
     carContext.globalAlpha = 1;
     optimalCar.draw(carContext, "purple", true);
-
-
-
 
     carContext.restore();
     networkContext.lineDashOffset = -time / 50;

@@ -53,15 +53,12 @@ class Car{
             //if we going forward the angle* 1 is the same
             // if we are going in reverse then we need to do angle * -1
             const flip=this.speed>0?1:-1;
-            if(this.controls.right){
-                // think of it as a unit circle that's rotated 90 deg 
-                //decrease angle
-                this.angle-=0.03*flip;
-            }
-            if(this.controls.left){
-                // increase the angle
-                this.angle+=0.03*flip;
-            }
+            if(this.controls.left && this.controls.right){
+        } else if(this.controls.right){
+            this.angle-=0.03*flip;
+        } else if(this.controls.left){
+            this.angle+=0.03*flip;
+        }
         }
         
         if(this.speed > this.maxSpeed){

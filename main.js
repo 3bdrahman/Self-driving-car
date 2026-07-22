@@ -6,52 +6,54 @@ networkCanvas.width = 400;
 const carContext = carCanvas.getContext("2d");
 const networkContext = networkCanvas.getContext("2d");
 const road = new Road(carCanvas.width / 2, carCanvas.width * 0.9);
-const num =100;
-const cars = generateDuplicates(num)
-const traffic = [
-    new Car(road.getLaneCenter(1), -100, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(0), -300, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(2), -300, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(0), -500, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(1), -500, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(1), -700, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(2), -750, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(0), -700, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(1), -700, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(2), -700, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(2), -800, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(1), -900, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(0), -800, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(2), -1000, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(0), -1200, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(1), -1100, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(1), -1160, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(2), -1300, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(0), -1350, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(1), -1400, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(2), -1500, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(2), -1600, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(1), -1650, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(0), -1700, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(2), -1700, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(0), -1800, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(1), -1850, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(1), -1900, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(2), -1900, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(0), -1900, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(1), -2100, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(2), -2150, 30, 50, "dummy", 2, getRandomColor()),
-    new Car(road.getLaneCenter(2), -2200, 30, 50, "dummy", 2, getRandomColor()),
-];
+const num = 300;
+const cars = generateDuplicates(num);
+
+const SPAWN_AHEAD = 1500;
+const CULL_BEHIND = 1500;
+const SPAWN_TARGET = 40;
+const SPAWN_GAP = 250;
+const traffic = [];
+
+function spawnTrafficBlock(centerY) {
+    const count = 1 + Math.floor(Math.random() * 3);
+    for (let k = 0; k < count; k++) {
+        const lane = Math.floor(Math.random() * road.numLanes);
+        const y = centerY - 800 - Math.random() * 1200;
+        const maxSpeed = 1.5 + Math.random() * 2.5;
+        traffic.push(new Car(road.getLaneCenter(lane), y, 30, 50, "dummy", maxSpeed, getRandomColor()));
+    }
+}
+
+for (let block = 0; block < 12; block++) {
+    spawnTrafficBlock(100 - block * 400);
+}
+
 let optimalCar = cars[0];
-if (sessionStorage.getItem("bestAutopilot")) {
-    for (let i = 0; i < cars.length; i++) {
-        cars[i].autoPilot = JSON.parse(localStorage.getItem("bestAutopilot"));
-        if (i != 0) {
-            NeuralNetwork.mutate(cars[i].autoPilot, 0.2);
+const laneDist = new Array(cars.length).fill(0);
+const speedDelta = new Array(cars.length).fill(0);
+const topSpeedFrames = new Array(cars.length).fill(0);
+const brakeFrames = new Array(cars.length).fill(0);
+const speedSum = new Array(cars.length).fill(0);
+const speedSumSq = new Array(cars.length).fill(0);
+const speedN = new Array(cars.length).fill(0);
+let prevX = cars.map(c => c.x);
+let prevSpeed = cars.map(c => c.speed);
+
+if (sessionStorage.getItem("bestAutopilot") && !localStorage.getItem("bestAutopilot")) {
+    sessionStorage.removeItem("bestAutopilot");
+}
+const savedBrain = localStorage.getItem("bestAutopilot");
+if (savedBrain) {
+    const parsedBrain = JSON.parse(savedBrain);
+    if (parsedBrain && parsedBrain.levels) {
+        for (let i = 0; i < cars.length; i++) {
+            cars[i].autoPilot = JSON.parse(JSON.stringify(parsedBrain));
+            if (i != 0) {
+                NeuralNetwork.mutate(cars[i].autoPilot, 0.3);
+            }
         }
     }
-
 }
 
 animate();
@@ -63,31 +65,78 @@ function generateDuplicates(num) {
     }
     return cars;
 }
-//saving the neural network of the most optimal car
 function save() {
-    sessionStorage.setItem("bestAutopilot",
+    localStorage.setItem("bestAutopilot",
         JSON.stringify(optimalCar.autoPilot));
 }
 function destroy() {
     localStorage.removeItem("bestAutopilot");
+    sessionStorage.removeItem("bestAutopilot");
 }
 
 function animate(time) {
+    const optimalY = optimalCar ? optimalCar.y : cars[0].y;
+    for (let i = traffic.length - 1; i >= 0; i--) {
+        if (traffic[i].y > optimalY + CULL_BEHIND) {
+            traffic.splice(i, 1);
+        }
+    }
+    let frontmostY = Infinity;
+    for (let i = 0; i < traffic.length; i++) {
+        if (traffic[i].y < frontmostY) frontmostY = traffic[i].y;
+    }
+    let safety = 8;
+    while (traffic.length < SPAWN_TARGET && safety-- > 0) {
+        const centerY = (frontmostY === Infinity ? optimalY - 800 : frontmostY - SPAWN_GAP);
+        spawnTrafficBlock(centerY);
+        frontmostY = centerY;
+    }
+
     for (let i = 0; i < traffic.length; i++) {
         traffic[i].update(road.borders, []);
     }
+
     for (let i = 0; i < cars.length; i++) {
         cars[i].update(road.borders, traffic);
+        if (!cars[i].hit) {
+            laneDist[i] += Math.abs(cars[i].x - prevX[i]);
+            speedDelta[i] += Math.abs(cars[i].speed - prevSpeed[i]);
+            if (cars[i].speed > cars[i].maxSpeed * 0.9) {
+                topSpeedFrames[i]++;
+            }
+            if (cars[i].controls.backwards && cars[i].speed > 0) {
+                brakeFrames[i]++;
+            }
+            const s = cars[i].speed;
+            speedSum[i] += s;
+            speedSumSq[i] += s * s;
+            speedN[i]++;
+        }
+        prevX[i] = cars[i].x;
+        prevSpeed[i] = cars[i].speed;
     }
-    //the optimal car is the car that has least y value ==> goes up most
-    optimalCar = cars.find(
-        c => c.y == Math.min(
-            ...cars.map(c => c.y)
-        )
-    );
+    const aliveIndices = cars.map((c, i) => c.hit ? -1 : i).filter(i => i >= 0);
+    if (aliveIndices.length > 0) {
+        let bestI = aliveIndices[0];
+        const fitness = (i) => {
+            const mean = speedN[i] > 0 ? speedSum[i] / speedN[i] : 0;
+            const variance = speedN[i] > 0 ? (speedSumSq[i] / speedN[i]) - mean * mean : 0;
+            return cars[i].y
+                - 1.0 * laneDist[i]
+                - 3.0 * speedDelta[i]
+                - 0.5 * topSpeedFrames[i]
+                - 50.0 * variance
+                + 1.5 * brakeFrames[i];
+        };
+        let bestScore = fitness(bestI);
+        for (const i of aliveIndices) {
+            const score = fitness(i);
+            if (score < bestScore) { bestScore = score; bestI = i; }
+        }
+        optimalCar = cars[bestI];
+    }
     carCanvas.height = window.innerHeight;
     networkCanvas.height = window.innerHeight;
-    //add effect of camera following the car as if the road is moving not the car
     carContext.save();
     carContext.translate(0, -optimalCar.y + carCanvas.height * 0.7);
     road.draw(carContext);

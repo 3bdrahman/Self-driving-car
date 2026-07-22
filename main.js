@@ -31,6 +31,7 @@ for (let block = 0; block < 12; block++) {
 
 let optimalCar = cars[0];
 const laneSet = cars.map(() => new Set());
+const laneChanges = new Array(cars.length).fill(0);
 const highSpeedFrames = new Array(cars.length).fill(0);
 const brakeFrames = new Array(cars.length).fill(0);
 
@@ -93,7 +94,11 @@ function animate(time) {
         cars[i].update(road.borders, traffic);
         if (!cars[i].hit) {
             const laneIdx = Math.round((cars[i].x - road.getLaneCenter(0)) / road.laneWidth);
-            laneSet[i].add(Math.max(0, Math.min(laneIdx, road.numLanes - 1)));
+            const clamped = Math.max(0, Math.min(laneIdx, road.numLanes - 1));
+            if (!laneSet[i].has(clamped)) {
+                laneChanges[i]++;
+            }
+            laneSet[i].add(clamped);
             if (cars[i].speed > 3.0) {
                 highSpeedFrames[i]++;
             }
@@ -106,8 +111,7 @@ function animate(time) {
     if (aliveIndices.length > 0) {
         let bestI = aliveIndices[0];
         const fitness = (i) => {
-            const uniqueLanes = laneSet[i].size;
-            return cars[i].y + 5.0 * uniqueLanes + 0.3 * highSpeedFrames[i] - 2.0 * brakeFrames[i];
+            return cars[i].y + 5.0 * laneChanges[i] + 0.3 * highSpeedFrames[i] - 2.0 * brakeFrames[i];
         };
         let bestScore = fitness(bestI);
         for (const i of aliveIndices) {

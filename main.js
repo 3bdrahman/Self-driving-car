@@ -47,6 +47,8 @@ const highSpeedFrames = new Array(cars.length).fill(0);
 const maxSpeedFrames = new Array(cars.length).fill(0);
 const brakeFrames = new Array(cars.length).fill(0);
 const steeringFrames = new Array(cars.length).fill(0);
+const stopFrames = new Array(cars.length).fill(0);
+const backwardsFrames = new Array(cars.length).fill(0);
 let prevLane = cars.map(() => -1);
 
 if (sessionStorage.getItem("bestAutopilot") && !localStorage.getItem("bestAutopilot")) {
@@ -125,6 +127,8 @@ function animate(time) {
             if (cars[i].speed > 3.0) highSpeedFrames[i]++;
             if (cars[i].speed > cars[i].maxSpeed * 0.95) maxSpeedFrames[i]++;
             if (cars[i].controls.backwards && cars[i].speed > 0) brakeFrames[i]++;
+            if (Math.abs(cars[i].speed) < 0.3) stopFrames[i]++;
+            if (cars[i].speed < -0.1) backwardsFrames[i]++;
             if (cars[i].controls.left) steeringFrames[i]++;
             if (cars[i].controls.right) steeringFrames[i]++;
         }
@@ -138,8 +142,10 @@ function animate(time) {
             const speedBonus = 2.0 * highSpeedFrames[i] + 4.0 * maxSpeedFrames[i];
             const brakePenalty = 12.0 * brakeFrames[i];
             const sameLanePenalty = 0.15 * sameLaneFrames[i];
+            const stopPenalty = 30.0 * stopFrames[i];
+            const backwardsPenalty = 50.0 * backwardsFrames[i];
             const steeringReward = 0.5 * steeringFrames[i];
-            return distance + laneChangeBonus + speedBonus - brakePenalty - sameLanePenalty + steeringReward;
+            return distance + laneChangeBonus + speedBonus - brakePenalty - sameLanePenalty - stopPenalty - backwardsPenalty + steeringReward;
         };
         let bestScore = fitness(bestI);
         for (const i of aliveIndices) {

@@ -111,14 +111,12 @@ function animate(time) {
     for (let i = 0; i < cars.length; i++) {
         cars[i].update(road.borders, traffic, road.laneDividers);
         if (!cars[i].hit) {
-            // Compute continuous lane position for lane-centering penalty
-            const laneIdxForCenter = Math.round((cars[i].x - road.left) / road.laneWidth);
-            const laneCenter = road.getLaneCenter(Math.max(0, Math.min(laneIdxForCenter, road.numLanes - 1)));
+            // Compute lane index (0-based) using floor for correct lane assignment
+            const laneIdx = Math.floor((cars[i].x - road.left) / road.laneWidth);
+            const clamped = Math.max(0, Math.min(laneIdx, road.numLanes - 1));
+            const laneCenter = road.getLaneCenter(clamped);
             const laneOffset = Math.abs(cars[i].x - laneCenter) / road.laneWidth; // 0 = centered, 0.5 = on divider
 
-            const laneIdx = Math.round((cars[i].x - road.getLaneCenter(0)) / road.laneWidth);
-            const clamped = Math.max(0, Math.min(laneIdx, road.numLanes - 1));
-            
             if (!laneSet[i].has(clamped)) {
                 laneChanges[i]++;
             }
@@ -133,7 +131,6 @@ function animate(time) {
 
             if (cars[i].speed > 3.0) highSpeedFrames[i]++;
             if (cars[i].speed > cars[i].maxSpeed * 0.95) maxSpeedFrames[i]++;
-            // Track lane-centering penalty (normalized: 0 = centered, 0.5 = on divider)
             laneCenterPenaltyFrames[i] += laneOffset;
 
             if (cars[i].controls.backwards && cars[i].speed > 0) brakeFrames[i]++;

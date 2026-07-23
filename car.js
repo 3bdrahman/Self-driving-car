@@ -13,8 +13,9 @@ class Car{
         this.useAutoPilot = controlType=="autopilot";
         if(controlType != "dummy"){
             this.sensor=new Sensor(this);
+            // 9 rays * 2 (distance + type) = 18 inputs
             this.autoPilot=new NeuralNetwork(
-                [this.sensor.rayCount,6,4]
+                [this.sensor.inputSize,6,4]
             );
         }
         
@@ -92,12 +93,8 @@ if(this.speed!=0){
         }
 if(this.sensor){
             this.sensor.update(roadBorders, traffic, laneDividers);
-            const offsets=this.sensor.readings.map(
-                s=>s==null?0:1-s.offset
-            );
-             const outputs=NeuralNetwork.feedForward(offsets,this.autoPilot);
-            //  console.log(outputs);
-            // readings now include .type: 'border' | 'traffic' | 'laneDivider'
+            const inputs = this.encodeSensorInputs(this.sensor.readings);
+            const outputs=NeuralNetwork.feedForward(inputs,this.autoPilot);
               if(this.useAutoPilot){
                  this.controls.forward=outputs[0];
                  this.controls.left=outputs[1];
@@ -120,6 +117,18 @@ if(this.sensor){
             }
         }
         return false;
+    }
+    encodeSensorInputs(readings){
+        const inputs = [];
+        const typeMap = { 'border': 0.25, 'traffic': 0.5, 'laneDivider': 0.75 };
+        for(const r of readings){
+            if(r === null){
+                inputs.push(0, 0); // no hit: distance=0, type=0
+            } else {
+                inputs.push(1 - r.offset, typeMap[r.type] || 0); // normalized distance, type code
+            }
+        }
+        return inputs;
     }
     // finding the edge points of the car
     createPolygon(){

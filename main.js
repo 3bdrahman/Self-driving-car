@@ -13,7 +13,8 @@ const SPAWN_AHEAD = 1500;
 const CULL_BEHIND = 1500;
 const SPAWN_TARGET = 50;
 const SPAWN_GAP = 200;
-const LANE_CENTER_PENALTY_WEIGHT = 0.8; // penalty per frame for distance from lane center
+const LANE_CENTER_PENALTY_WEIGHT = 1.5; // penalty per frame for distance from lane center
+const ON_DIVIDER_PENALTY_WEIGHT = 10.0; // penalty per frame when on divider (laneOffset ≈ 0.5)
 const traffic = [];
 
 function spawnTrafficBlock(centerY) {
@@ -51,6 +52,7 @@ const stopFrames = new Array(cars.length).fill(0);
 const backwardsFrames = new Array(cars.length).fill(0);
 const anglePenaltyFrames = new Array(cars.length).fill(0);
 const laneCenterPenaltyFrames = new Array(cars.length).fill(0);
+const onDividerFrames = new Array(cars.length).fill(0);
 let prevLane = cars.map(() => -1);
 
 if (sessionStorage.getItem("bestAutopilot") && !localStorage.getItem("bestAutopilot")) {
@@ -63,7 +65,7 @@ if (savedBrain) {
         for (let i = 0; i < cars.length; i++) {
             cars[i].autoPilot = JSON.parse(JSON.stringify(parsedBrain));
             if (i != 0) {
-                NeuralNetwork.mutate(cars[i].autoPilot, 0.35);
+                NeuralNetwork.mutate(cars[i].autoPilot, 0.15);
             }
         }
     }
@@ -132,6 +134,8 @@ function animate(time) {
             if (cars[i].speed > 3.0) highSpeedFrames[i]++;
             if (cars[i].speed > cars[i].maxSpeed * 0.95) maxSpeedFrames[i]++;
             laneCenterPenaltyFrames[i] += laneOffset;
+            // Track on-divider frames (laneOffset > 0.4 means very close to or on divider)
+            if (laneOffset > 0.4) onDividerFrames[i]++;
 
             if (cars[i].controls.backwards && cars[i].speed > 0) brakeFrames[i]++;
             if (Math.abs(cars[i].speed) < 0.3) stopFrames[i]++;
@@ -152,7 +156,8 @@ function animate(time) {
             const backwardsPenalty = 50.0 * backwardsFrames[i];
             const anglePenalty = 0.5 * anglePenaltyFrames[i];
             const laneCenterPenalty = LANE_CENTER_PENALTY_WEIGHT * laneCenterPenaltyFrames[i];
-            return distance + laneChangeBonus + speedBonus - brakePenalty - sameLanePenalty - stopPenalty - backwardsPenalty - anglePenalty - laneCenterPenalty;
+            const onDividerPenalty = ON_DIVIDER_PENALTY_WEIGHT * onDividerFrames[i];
+            return distance + laneChangeBonus + speedBonus - brakePenalty - sameLanePenalty - stopPenalty - backwardsPenalty - anglePenalty - laneCenterPenalty - onDividerPenalty;
         };
         let bestScore = fitness(bestI);
         for (const i of aliveIndices) {

@@ -4,6 +4,7 @@ class Sensor{
         this.rayCount=9;
         this.rayLength=300;
         this.raySpread=Math.PI * 0.75;
+        this.inputSize = this.rayCount * 2; // distance + type per ray
 
         this.rays=[];
         this.readings=[];
@@ -50,11 +51,9 @@ class Sensor{
         if(touches.length===0) return null;
         else{
                 const offsets = touches.map(e=>e.offset);
-                // if the ray touches more than one object we need to find the minimum which 
-                // is also the closest object 
-                // ... is spreading the array into values
                 const minOffset= Math.min(...offsets);
-                return touches.find(e => e.offset == minOffset);
+                const hit = touches.find(e => e.offset == minOffset);
+                return { x: hit.x, y: hit.y, offset: hit.offset, type: hit.type };
         }
     }
     #castRays(){

@@ -42,6 +42,7 @@ for (let block = 0; block < 15; block++) {
 }
 
 let optimalCar = cars[0];
+let generation = 1;
 const laneSet = cars.map(() => new Set());
 const laneChanges = new Array(cars.length).fill(0);
 const sameLaneFrames = new Array(cars.length).fill(0);
@@ -165,7 +166,27 @@ function animate(time) {
             if (score > bestScore) { bestScore = score; bestI = i; }
         }
         optimalCar = cars[bestI];
+    } else {
+        // All cars dead - new generation
+        generation++;
+        // Reset all tracking arrays
+        laneSet.forEach(s => s.clear());
+        laneChanges.fill(0);
+        sameLaneFrames.fill(0);
+        highSpeedFrames.fill(0);
+        maxSpeedFrames.fill(0);
+        brakeFrames.fill(0);
+        stopFrames.fill(0);
+        backwardsFrames.fill(0);
+        anglePenaltyFrames.fill(0);
+        laneCenterPenaltyFrames.fill(0);
+        onDividerFrames.fill(0);
+        prevLane.fill(-1);
     }
+    // Update info panel
+    document.getElementById("genDisplay").textContent = "Generation: " + generation;
+    document.getElementById("aliveDisplay").textContent = "Alive: " + aliveIndices.length;
+    document.getElementById("bestDistDisplay").textContent = "Best Distance: " + Math.round(-optimalCar.y) + "m";
     carCanvas.height = window.innerHeight;
     networkCanvas.height = window.innerHeight;
     carContext.save();

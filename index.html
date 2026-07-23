@@ -7,10 +7,14 @@
     </head>
     <body>
         <canvas id="carCanvas"></canvas>
+        <div id="infoPanel">
+            <span id="genDisplay">Generation: 1</span>
+            <span id="aliveDisplay">Alive: 300</span>
+            <span id="bestDistDisplay">Best Distance: 0m</span>
+        </div>
         <div id="storageButtons">
             <button onclick="save()">Save</button>
             <button onclick="destroy()">Destroy</button>
-            
         </div>
         <canvas id="networkCanvas"></canvas>
         <script src="networkVisualizer.js"></script>

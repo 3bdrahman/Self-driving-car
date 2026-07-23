@@ -13,6 +13,7 @@ const SPAWN_AHEAD = 1500;
 const CULL_BEHIND = 1500;
 const SPAWN_TARGET = 50;
 const SPAWN_GAP = 200;
+const LANE_CENTER_PENALTY_WEIGHT = 0.8; // penalty per frame for distance from lane center
 const traffic = [];
 
 function spawnTrafficBlock(centerY) {
@@ -49,6 +50,7 @@ const brakeFrames = new Array(cars.length).fill(0);
 const stopFrames = new Array(cars.length).fill(0);
 const backwardsFrames = new Array(cars.length).fill(0);
 const anglePenaltyFrames = new Array(cars.length).fill(0);
+const laneCenterPenaltyFrames = new Array(cars.length).fill(0);
 let prevLane = cars.map(() => -1);
 
 if (sessionStorage.getItem("bestAutopilot") && !localStorage.getItem("bestAutopilot")) {
@@ -107,8 +109,13 @@ function animate(time) {
     }
 
     for (let i = 0; i < cars.length; i++) {
-        cars[i].update(road.borders, traffic);
+        cars[i].update(road.borders, traffic, road.laneDividers);
         if (!cars[i].hit) {
+            // Compute continuous lane position for lane-centering penalty
+            const laneIdxForCenter = Math.round((cars[i].x - road.left) / road.laneWidth);
+            const laneCenter = road.getLaneCenter(Math.max(0, Math.min(laneIdxForCenter, road.numLanes - 1)));
+            const laneOffset = Math.abs(cars[i].x - laneCenter) / road.laneWidth; // 0 = centered, 0.5 = on divider
+
             const laneIdx = Math.round((cars[i].x - road.getLaneCenter(0)) / road.laneWidth);
             const clamped = Math.max(0, Math.min(laneIdx, road.numLanes - 1));
             
@@ -126,6 +133,9 @@ function animate(time) {
 
             if (cars[i].speed > 3.0) highSpeedFrames[i]++;
             if (cars[i].speed > cars[i].maxSpeed * 0.95) maxSpeedFrames[i]++;
+            // Track lane-centering penalty (normalized: 0 = centered, 0.5 = on divider)
+            laneCenterPenaltyFrames[i] += laneOffset;
+
             if (cars[i].controls.backwards && cars[i].speed > 0) brakeFrames[i]++;
             if (Math.abs(cars[i].speed) < 0.3) stopFrames[i]++;
             if (cars[i].speed < -0.1) backwardsFrames[i]++;
@@ -144,7 +154,8 @@ function animate(time) {
             const stopPenalty = 30.0 * stopFrames[i];
             const backwardsPenalty = 50.0 * backwardsFrames[i];
             const anglePenalty = 0.5 * anglePenaltyFrames[i];
-            return distance + laneChangeBonus + speedBonus - brakePenalty - sameLanePenalty - stopPenalty - backwardsPenalty - anglePenalty;
+            const laneCenterPenalty = LANE_CENTER_PENALTY_WEIGHT * laneCenterPenaltyFrames[i];
+            return distance + laneChangeBonus + speedBonus - brakePenalty - sameLanePenalty - stopPenalty - backwardsPenalty - anglePenalty - laneCenterPenalty;
         };
         let bestScore = fitness(bestI);
         for (const i of aliveIndices) {

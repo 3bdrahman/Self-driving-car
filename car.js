@@ -34,7 +34,7 @@ class Car{
             maskContext.drawImage(this.img,0,0,this.width,this.height)
         }
     }
-    update(roadBorders,traffic){
+    update(roadBorders,traffic, laneDividers){
         // console.log(this.angle);
         //if the car is hit stop ie render useless
         if(!this.hit){
@@ -90,14 +90,15 @@ if(this.speed!=0){
         this.polygon=this.createPolygon();
         this.hit=this.isHit(roadBorders, traffic);
         }
-        if(this.sensor){
-            this.sensor.update(roadBorders, traffic);
+if(this.sensor){
+            this.sensor.update(roadBorders, traffic, laneDividers);
             const offsets=this.sensor.readings.map(
                 s=>s==null?0:1-s.offset
             );
              const outputs=NeuralNetwork.feedForward(offsets,this.autoPilot);
             //  console.log(outputs);
-             if(this.useAutoPilot){
+            // readings now include .type: 'border' | 'traffic' | 'laneDivider'
+              if(this.useAutoPilot){
                  this.controls.forward=outputs[0];
                  this.controls.left=outputs[1];
                  this.controls.right=outputs[2];

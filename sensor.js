@@ -8,35 +8,44 @@ class Sensor{
         this.rays=[];
         this.readings=[];
     }
-    update(roadBorders,traffic){
+    update(roadBorders,traffic, laneDividers){
       this.#castRays();
       this.readings=[];
       for(let i=0; i <this.rays.length;i++){
           this.readings.push(
-              this.getReading(this.rays[i],roadBorders, traffic)
+              this.getReading(this.rays[i],roadBorders, traffic, laneDividers)
           );
 
       }
     };
-    getReading(ray,roadBorders,traffic){
+    getReading(ray,roadBorders,traffic, laneDividers){
         let touches=[];
         for(let i =0;i<roadBorders.length;i++){
             // this intersection methon also return the offset ( how far the rouch is from
             //the ray origin which is also the center of the car) 
             const touch=getIntersection(ray[0],ray[1], roadBorders[i][0],roadBorders[i][1]);
             if(touch){
-                touches.push(touch);
+                touches.push({...touch, type: 'border'});
             }
         }
         for(let i=0;i<traffic.length;i++){
             for(let j=0; j<traffic[i].polygon.length;j++){
                 const trafficTouch = getIntersection(ray[0],ray[1],traffic[i].polygon[j], traffic[i].polygon[(j+1)%traffic[i].polygon.length]);
                 if(trafficTouch){
-                    touches.push(trafficTouch);
+                    touches.push({...trafficTouch, type: 'traffic'});
                 }
             }
             
             
+        }
+        // Detect lane dividers (dashed lines between lanes)
+        if (laneDividers) {
+            for(let i=0; i<laneDividers.length; i++){
+                const touch = getIntersection(ray[0],ray[1], laneDividers[i][0], laneDividers[i][1]);
+                if(touch){
+                    touches.push({...touch, type: 'laneDivider'});
+                }
+            }
         }
         if(touches.length===0) return null;
         else{

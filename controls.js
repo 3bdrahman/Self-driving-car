@@ -12,49 +12,50 @@ class Controls{
                 this.forward=true;
                 break;
         }
-        
+
     }
+    // addEventListener (not document.onkeydown) so multiple keyboard-driven
+    // cars can coexist: each Controls instance gets its own callback bound
+    // to itself instead of clobbering the previous one.
     addKeyboardListeners(){
-        document.onkeydown=(event)=>{
+        document.addEventListener("keydown", (event)=>{
             switch(event.key){
                 case "ArrowLeft":
                     this.left=true;
                     break;
-            
+
                 case "ArrowRight":
                     this.right=true;
                     break;
-                
+
                 case "ArrowUp":
                     this.forward=true;
                     break;
-                
+
                 case "ArrowDown":
                     this.backwards=true;
                     break;
             }
-            // console.table(this);
-        }
+        });
 
-        document.onkeyup=(event)=>{
+        document.addEventListener("keyup", (event)=>{
             switch(event.key){
                 case "ArrowLeft":
                     this.left=false;
                     break;
-            
+
                 case "ArrowRight":
                     this.right=false;
                     break;
-                
+
                 case "ArrowUp":
                     this.forward=false;
                     break;
-                
+
                 case "ArrowDown":
                     this.backwards=false;
                     break;
             }
-            // console.table(this)
-        }
+        });
     }
 }

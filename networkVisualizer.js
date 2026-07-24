@@ -71,12 +71,12 @@ class NetworkVisualizer{
             if(labels[i]){
                 context.beginPath();
                 context.textAlign="center";
-                context.textBaseLine="large";
-                context.fillStyle="black"
+                context.textBaseline="middle";
+                context.fillStyle="black";
                 context.strokeStyle="red";
-                context.font=(radius * 2.8) + "px";
+                context.font="italic bold " + (radius * 1.6) + "px sans-serif";
                 context.fillText(labels[i],x,top);
-                context.lineWidth=6;
+                context.lineWidth=0.4;
                 context.strokeText(labels[i],x,top);
             }
         }

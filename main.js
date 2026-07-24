@@ -9,6 +9,16 @@ const road = new Road(carCanvas.width / 2, carCanvas.width * 0.9);
 const num = 300;
 const cars = generateDuplicates(num);
 
+// Set canvas heights once, then on resize. Re-writing height every frame is
+// a needless full-canvas reset and a stutter source.
+function setCanvasHeights() {
+    const h = window.innerHeight;
+    carCanvas.height = h;
+    networkCanvas.height = h;
+}
+setCanvasHeights();
+window.addEventListener("resize", setCanvasHeights);
+
 const SPAWN_AHEAD = 1500;
 const CULL_BEHIND = 1500;
 const SPAWN_TARGET = 50;
@@ -31,31 +41,72 @@ const BEST_DIST_KEY = "bestDistanceEver";
 
 const traffic = [];
 
+// Lane character: each lane has its own speed distribution so the autopilot
+// has to make a real choice about which lane suits it. From the left edge
+// onward, lanes lean slow→fast. The middle lane is mixed so a "balanced"
+// driver can still find a clear-ish path through it.
+const LANE_SPEED_PROFILES = [
+    { min: 1.0, max: 2.0 }, // left:  crawlers / trucks
+    { min: 2.0, max: 3.5 }, // mid:   mixed commuter traffic
+    { min: 3.5, max: 5.5 }, // right: sport speeders
+];
+
+function laneMaxSpeed(lane) {
+    const p = LANE_SPEED_PROFILES[Math.max(0, Math.min(lane, LANE_SPEED_PROFILES.length - 1))];
+    return p.min + Math.random() * (p.max - p.min);
+}
+
+function spawnTrafficAt(lane, y) {
+    traffic.push(new Car(
+        road.getLaneCenter(lane),
+        y,
+        30, 50,
+        "dummy",
+        laneMaxSpeed(lane),
+        getRandomColor()
+    ));
+}
+
+// Pick one lane per block so traffic keeps a sensible per-lane character
+// even as cars randomly leave gaps.
+function pickLaneToFill() {
+    const counts = [0, 0, 0];
+    for (const t of traffic) {
+        // Lane index = floor((x - left) / laneWidth). This places a car at
+        // lane-center (fractional position lane + 0.5) into the right bucket;
+        // Math.round would push a lane-0 centre up into lane 1's bucket.
+        const l = Math.floor((t.x - road.left) / road.laneWidth);
+        const clamped = Math.max(0, Math.min(l, road.numLanes - 1));
+        counts[clamped]++;
+    }
+    // Prefer the emptiest lane, with random tiebreaker
+    let min = Infinity;
+    for (let i = 0; i < counts.length; i++) if (counts[i] < min) min = counts[i];
+    const cands = [];
+    for (let i = 0; i < counts.length; i++) if (counts[i] === min) cands.push(i);
+    return cands[Math.floor(Math.random() * cands.length)];
+}
+
 function spawnTrafficBlock(centerY) {
-    const count = 1 + Math.floor(Math.random() * 4);
-    for (let k = 0; k < count; k++) {
-        const lane = Math.floor(Math.random() * road.numLanes);
-        const y = centerY - 600 - Math.random() * 1000;
-        const speedTier = Math.random();
-        let maxSpeed;
-        if (speedTier < 0.25) {
-            maxSpeed = 1.0 + Math.random() * 0.8;
-        } else if (speedTier < 0.55) {
-            maxSpeed = 2.0 + Math.random() * 1.0;
-        } else if (speedTier < 0.85) {
-            maxSpeed = 3.0 + Math.random() * 1.0;
-        } else {
-            maxSpeed = 4.0 + Math.random() * 1.5;
-        }
-        traffic.push(new Car(road.getLaneCenter(lane), y, 30, 50, "dummy", maxSpeed, getRandomColor()));
+    const lane = pickLaneToFill();
+    const y = centerY - 200 - Math.random() * 800;
+    spawnTrafficAt(lane, y);
+}
+
+// Initial seed: 25 cars per lane, evenly spaced vertically.
+for (let lane = 0; lane < road.numLanes; lane++) {
+    const seededCount = 25;
+    for (let i = 0; i < seededCount; i++) {
+        spawnTrafficAt(lane, 200 - i * 320);
     }
 }
 
-for (let block = 0; block < 15; block++) {
-    spawnTrafficBlock(100 - block * 350);
-}
-
 let optimalCar = cars[0];
+// The "overlay" car — the one whose sensors are visualised and whose brain
+// is shown in the right-hand panel. We lock it to the elite at naturalise
+// time so the visualisation is stable, instead of swapping to whatever car
+// happens to be the per-frame fitness winner (which flickers brain-to-brain).
+let generationOverlayIndex = 0;
 let generation = 1;
 let genStartTime = performance.now();
 let bestDistanceThisGen = 0;
@@ -169,9 +220,11 @@ function naturalize(elite) {
     bestDistanceThisGenAt = now;
     seedFromBrain(elite.autoPilot);
     optimalCar = cars[0];
+    generationOverlayIndex = 0; // cars[0] is the elite (least mutated clone)
 }
 
 function animate(time) {
+    const overlayCar = cars[generationOverlayIndex] || cars[0];
     const optimalY = optimalCar ? optimalCar.y : cars[0].y;
     for (let i = traffic.length - 1; i >= 0; i--) {
         if (traffic[i].y > optimalY + CULL_BEHIND) {
@@ -296,8 +349,6 @@ function animate(time) {
     document.getElementById("bestDistDisplay").textContent =
         "Best ever: " + bestDistanceEver + "m  |  This gen: " + Math.max(thisGen, liveDistThisGen) + "m";
 
-    carCanvas.height = window.innerHeight;
-    networkCanvas.height = window.innerHeight;
     carContext.save();
     carContext.translate(0, -optimalCar.y + carCanvas.height * 0.7);
     road.draw(carContext);
@@ -305,15 +356,17 @@ function animate(time) {
         traffic[i].draw(carContext, "blue");
     }
     carContext.globalAlpha = 0.2;
+    // Skip the overlay in the alpha pass so it isn't double-drawn.
     for (let i = 0; i < cars.length; i++) {
+        if (i === generationOverlayIndex) continue;
         cars[i].draw(carContext, "purple");
     }
     carContext.globalAlpha = 1;
-    optimalCar.draw(carContext, "purple", true);
+    overlayCar.draw(carContext, "purple", true);
 
     carContext.restore();
     networkContext.lineDashOffset = -time / 50;
-    NetworkVisualizer.drawNetwork(networkContext, optimalCar.autoPilot);
+    NetworkVisualizer.drawNetwork(networkContext, overlayCar.autoPilot);
 
     requestAnimationFrame(animate);
 }

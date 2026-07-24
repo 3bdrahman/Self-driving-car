@@ -66,5 +66,5 @@ function getRGB(val){
 
 function getRandomColor(){
     const val = 290+Math.random()*260;
-    return "hsl(" + val+", 100%, 60%";
+    return "hsl(" + val + ", 100%, 60%)";
 }

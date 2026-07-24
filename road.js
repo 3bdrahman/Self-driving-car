@@ -7,7 +7,11 @@ class Road{
 		this.right=x+width/2;
 		const inf = 1000000;
 		this.top=-inf;
-		this.bottom=inf;
+		// Finite horizon so the demo has a visible end rather than marching
+		// forever into the void. Generations long enough to reach this
+		// ceiling can still be measured against it — the elite is whichever
+		// car reaches (or beats) this distance, not a numerical infinity.
+		this.bottom = -12000;
 		const topLeft={x:this.left, y:this.top};
 		const topRight={x:this.right, y:this.top};
 		const bottomLeft={x:this.left, y:this.bottom};
@@ -17,14 +21,12 @@ class Road{
 			[topRight,bottomRight]
 		];
 
-		// Lane divider lines (between lanes) for sensors to detect
 		this.laneDividers = [];
 		for (let i = 1; i <= this.numLanes - 1; i++) {
 			const x = lerp(this.left, this.right, i / this.numLanes);
 			this.laneDividers.push([{x, y: this.top}, {x, y: this.bottom}]);
 		}
 
-		// Expose lane width for penalty calculation
 		this.laneWidth = this.width / this.numLanes;
 	}
     getLaneCenter(LaneIndex){

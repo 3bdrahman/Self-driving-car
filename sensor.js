@@ -4,27 +4,27 @@ class Sensor{
         this.rayCount=9;
         this.rayLength=300;
         this.raySpread=Math.PI * 0.75;
-        this.inputSize = this.rayCount * 2; // distance + type per ray
+        // 9 rays × 2 channels (distance + object kind) = 18 inputs
+        this.inputSize = this.rayCount * 2;
 
         this.rays=[];
         this.readings=[];
     }
-    update(roadBorders,traffic, laneDividers){
+    update(roadBorders, traffic){
       this.#castRays();
       this.readings=[];
       for(let i=0; i <this.rays.length;i++){
           this.readings.push(
-              this.getReading(this.rays[i],roadBorders, traffic, laneDividers)
+              this.getReading(this.rays[i], roadBorders, traffic)
           );
 
       }
     };
-    getReading(ray,roadBorders,traffic, laneDividers){
+    getReading(ray, roadBorders, traffic){
         let touches=[];
         for(let i =0;i<roadBorders.length;i++){
-            // this intersection methon also return the offset ( how far the rouch is from
-            //the ray origin which is also the center of the car) 
-            const touch=getIntersection(ray[0],ray[1], roadBorders[i][0],roadBorders[i][1]);
+            // Intersection returns offset = how far along the ray the hit is.
+            const touch=getIntersection(ray[0], ray[1], roadBorders[i][0], roadBorders[i][1]);
             if(touch){
                 touches.push({...touch, type: 'border'});
             }
@@ -36,18 +36,11 @@ class Sensor{
                     touches.push({...trafficTouch, type: 'traffic'});
                 }
             }
-            
-            
         }
-        // Detect lane dividers (dashed lines between lanes)
-        if (laneDividers) {
-            for(let i=0; i<laneDividers.length; i++){
-                const touch = getIntersection(ray[0],ray[1], laneDividers[i][0], laneDividers[i][1]);
-                if(touch){
-                    touches.push({...touch, type: 'laneDivider'});
-                }
-            }
-        }
+        // Lane dividers are deliberately not sensed: they are cosmetic stripes,
+        // not walls. Detecting them before the fix caused the brain to learn
+        // "brake when something is close" and crash into anything, including
+        // its own lane stripe.
         if(touches.length===0) return null;
         else{
                 const offsets = touches.map(e=>e.offset);

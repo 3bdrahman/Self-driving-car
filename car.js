@@ -35,24 +35,15 @@ class Car{
             maskContext.drawImage(this.img,0,0,this.width,this.height)
         }
     }
-    update(roadBorders,traffic, laneDividers){
-        // console.log(this.angle);
-        //if the car is hit stop ie render useless
+    update(roadBorders, traffic){
         if(!this.hit){
-
-        // car Physics
-        // negative speed just denotes moving backwards
         if(this.controls.forward){
-            //speed will increase by the acceleration
             this.speed+=this.acceleration;
         }
         if(this.controls.backwards){
-            //speed will decrease by the acceleration
             this.speed-=this.acceleration;
         }
-if(this.speed!=0){
-            //if we going forward the angle* 1 is the same
-            // if we are going in reverse then we need to do angle * -1
+        if(this.speed!=0){
             const flip=this.speed>0?1:-1;
             if(this.controls.left && this.controls.right){
             } else if(this.controls.right){
@@ -61,7 +52,7 @@ if(this.speed!=0){
                 this.angle+=0.15*flip;
             }
         }
-        
+
         if(this.speed > this.maxSpeed){
             this.speed=this.maxSpeed;
         }
@@ -76,7 +67,7 @@ if(this.speed!=0){
         if(Math.abs(this.speed) < this.friction){
             this.speed=0;
         }
-        
+
         if(this.speed != 0 && !this.controls.left && !this.controls.right){
             if(this.angle > 0){
                 this.angle = Math.max(0, this.angle - 0.02);
@@ -84,15 +75,14 @@ if(this.speed!=0){
                 this.angle = Math.min(0, this.angle + 0.02);
             }
         }
-        
+
         this.x-=Math.sin(this.angle)*this.speed;
-        
         this.y-=Math.cos(this.angle)*this.speed;
         this.polygon=this.createPolygon();
         this.hit=this.isHit(roadBorders, traffic);
         }
-if(this.sensor){
-            this.sensor.update(roadBorders, traffic, laneDividers);
+        if(this.sensor){
+            this.sensor.update(roadBorders, traffic);
             const inputs = this.encodeSensorInputs(this.sensor.readings);
             const outputs=NeuralNetwork.feedForward(inputs,this.autoPilot);
               if(this.useAutoPilot){
@@ -100,10 +90,10 @@ if(this.sensor){
                  this.controls.left=outputs[1];
                  this.controls.right=outputs[2];
                  this.controls.backwards=outputs[3];
-                 
+
              }
         }
-        
+
     }
     isHit(roadBorders, traffic){
         for(let i=0; i<roadBorders.length;i++){
@@ -118,14 +108,22 @@ if(this.sensor){
         }
         return false;
     }
+    // 9 rays × 2 channels.
+    //   channel 1 (distance): 1.0 when a ray hits something at the front of the
+    //                          sensor (r.offset == 0), 0 when the ray runs the
+    //                          full length without hitting anything (r == null).
+    //                          Distance falls off linearly as the hit retreats.
+    //   channel 2 (object kind): 1.0 = border, 0.5 = traffic, 0 = clear.
+    //                            Border vs traffic matters to the brain only at
+    //                            long ranges — we keep it discriminable.
     encodeSensorInputs(readings){
         const inputs = [];
-        const typeMap = { 'border': 0.25, 'traffic': 0.5, 'laneDivider': 0.75 };
+        const kindMap = { border: 1.0, traffic: 0.5 };
         for(const r of readings){
             if(r === null){
-                inputs.push(0, 0); // no hit: distance=0, type=0
+                inputs.push(0, 0);
             } else {
-                inputs.push(1 - r.offset, typeMap[r.type] || 0); // normalized distance, type code
+                inputs.push(1 - r.offset, kindMap[r.type] ?? 0);
             }
         }
         return inputs;

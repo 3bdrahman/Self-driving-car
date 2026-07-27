@@ -1,36 +1,9 @@
-// Module-level image, imagePromise and tinted-mask cache.
-//
-// We were previously building a maskCanvas per Car (300 cars = 300 canvases
-// in the DOM) and registering img.onload per Car (300 stale callbacks for
-// the same image). Now: one image load, one canvas per unique (color, w, h).
 const CAR_IMG_SRC = "car.png";
 const carImage = new Image();
 carImage.src = CAR_IMG_SRC;
-const carImageReady = new Promise((resolve, reject) => {
-    carImage.onload = () => resolve(carImage);
-    carImage.onerror = (err) => reject(err);
-});
-const carMaskCache = new Map();
-
-function buildCarMask(color, width, height) {
-    const key = `${color}|${width}x${height}`;
-    const cached = carMaskCache.get(key);
-    if (cached) return cached;
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = color;
-    ctx.rect(0, 0, width, height);
-    ctx.fill();
-    ctx.globalCompositeOperation = "destination-atop";
-    ctx.drawImage(carImage, 0, 0, width, height);
-    carMaskCache.set(key, canvas);
-    return canvas;
-}
 
 class Car{
-    constructor(x,y,width,height,controlType,maxSpeed=4, color="blue"){
+    constructor(x,y,width,height,controlType,maxSpeed=0, color="blue"){
         this.x=x;
         this.y=y;
         this.width=width;
@@ -40,11 +13,11 @@ class Car{
         this.maxSpeed=maxSpeed;
         this.angle=0;
         this.friction=0.05;
+        this.color = color;
 
         this.useAutoPilot = controlType=="autopilot";
         if(controlType != "dummy"){
             this.sensor=new Sensor(this);
-            // 9 rays * 2 (distance + type) = 18 inputs
             this.autoPilot=new NeuralNetwork(
                 [this.sensor.inputSize,6,4]
             );
@@ -52,15 +25,6 @@ class Car{
 
         this.controls=new Controls(controlType);
         this.hit=false;
-        // If the image is already loaded, build the mask synchronously; if
-        // not, queue an async build and fall back to the raw image until
-        // it's done. Either way, the vehicle renders from frame 1.
-        if (carImage.complete && carImage.naturalWidth > 0) {
-            this.mask = buildCarMask(color, width, height);
-        } else {
-            this.mask = null;
-            carImageReady.then(() => { this.mask = buildCarMask(color, width, height); });
-        }
     }
     update(roadBorders, traffic){
         if(!this.hit){
@@ -183,64 +147,27 @@ class Car{
 
         return points;
     }
-    draw(context, color,hasSensors=false){
-        // context.save()
-        // context.translate(this.x, this.y);
-        // context.rotate(-this.angle);
-        // context.beginPath();
-        // context.rect(
-        //     -this.width/2,
-        //     -this.height/2,
-        //     this.width,
-        //     this.height
-        // );
-        
-        // context.fill();
-        // context.restore();
-
-        //if the car is hit it will be red in color
-        // if(this.hit){
-        //     context.fillStyle="red"
-        // }else{
-        //     context.fillStyle=color
-        // }
-        // // Now we can actually draw the polygon points 
-
-        // context.beginPath();
-        // context.moveTo(this.polygon[0].x,this.polygon[0].y);
-        
-        // for(let i=1;i<this.polygon.length;i++){
-        //     context.lineTo(this.polygon[i].x,this.polygon[i].y);
-        // }
-        // context.fill();
-        // add image of the car instead
+    draw(context, tintColor, hasSensors = false) {
         context.save();
-        context.translate(this.x,this.y);
+        context.translate(this.x, this.y);
         context.rotate(-this.angle);
-        if(!this.hit && this.mask){
-            // Tinted mask: solid color rectangle with alpha = car.png silhouette.
-            context.drawImage(this.mask,
-                -this.width/2,
-                -this.height/2,
-                this.width,
-                this.height);
-            context.globalCompositeOperation="multiply";
+
+        const imgReady = carImage.complete && carImage.naturalWidth > 0;
+        const fillColor = this.hit ? "red" : (tintColor || this.color || "blue");
+
+        if (imgReady) {
+            context.fillStyle = fillColor;
+            context.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+            context.save();
+            context.globalCompositeOperation = "destination-atop";
+            context.drawImage(carImage, -this.width / 2, -this.height / 2, this.width, this.height);
+            context.restore();
         }
 
-        // Base car image (untinted). Drawn even when this.mask is null (car
-        // collides with another before mask finishes caching) so the demo
-        // never renders an invisible car.
-        if (carImage.complete && carImage.naturalWidth > 0) {
-            context.drawImage(carImage,
-                -this.width/2,
-                -this.height/2,
-                this.width,
-                this.height);
-        }
         context.restore();
-        if(this.sensor&&hasSensors){
+
+        if (this.sensor && hasSensors) {
             this.sensor.draw(context);
         }
-
     }
 }

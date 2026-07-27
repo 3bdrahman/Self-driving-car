@@ -353,7 +353,7 @@ function animate(time) {
     carContext.translate(0, -optimalCar.y + carCanvas.height * 0.7);
     road.draw(carContext);
     for (let i = 0; i < traffic.length; i++) {
-        traffic[i].draw(carContext, "blue");
+        traffic[i].draw(carContext);
     }
     carContext.globalAlpha = 0.2;
     // Skip the overlay in the alpha pass so it isn't double-drawn.

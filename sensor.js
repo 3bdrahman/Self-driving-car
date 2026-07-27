@@ -70,27 +70,28 @@ class Sensor{
     //   console.log(this.rays)
     }
     draw(context) {
-        
-        for(let i=0;i<this.rayCount;i++){
-            let end=this.rays[i][1];
-            // if there's a reading for the ray i 
+        context.save();
+        context.lineWidth = 2;
 
-            if(this.readings[i]){
+        for (let i = 0; i < this.rayCount; i++) {
+            let end = this.rays[i][1];
+            if (this.readings[i]) {
                 end = this.readings[i];
             }
+
             context.beginPath();
-            context.lineWidth=2;
-            context.strokeStyle="yellow";
+            context.strokeStyle = "yellow";
             context.moveTo(this.rays[i][0].x, this.rays[i][0].y);
             context.lineTo(end.x, end.y);
             context.stroke();
 
             context.beginPath();
-            context.lineWidth=2;
-            context.strokeStyle="black";
+            context.strokeStyle = "black";
             context.moveTo(this.rays[i][1].x, this.rays[i][1].y);
             context.lineTo(end.x, end.y);
             context.stroke();
         }
+
+        context.restore();
     };
 }

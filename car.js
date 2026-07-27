@@ -153,20 +153,26 @@ class Car{
         context.rotate(-this.angle);
 
         const imgReady = carImage.complete && carImage.naturalWidth > 0;
-        const fillColor = this.hit ? "red" : (tintColor || this.color || "blue");
-
         if (imgReady) {
+            const fillColor = this.hit ? "red" : (tintColor || this.color || "blue");
+
+            context.save();
+            context.beginPath();
+            context.rect(-this.width / 2, -this.height / 2, this.width, this.height);
+            context.clip();
+
+            context.drawImage(carImage, -this.width / 2, -this.height / 2, this.width, this.height);
+
+            context.globalCompositeOperation = "multiply";
             context.fillStyle = fillColor;
             context.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-            context.save();
-            context.globalCompositeOperation = "destination-atop";
-            context.drawImage(carImage, -this.width / 2, -this.height / 2, this.width, this.height);
+
             context.restore();
         }
 
         context.restore();
 
-        if (this.sensor && hasSensors) {
+        if (imgReady && this.sensor && hasSensors) {
             this.sensor.draw(context);
         }
     }

@@ -33,33 +33,28 @@ class Road{
         const laneWidth=this.width/this.numLanes;
         return this.left + laneWidth/2 + Math.min(LaneIndex, this.numLanes-1)  * laneWidth;
     }
-    draw(context){
-        context.lineWidth=5;
-        context.strokeStyle="white";
-        //drawing traffic lanes
-        for(let i=1; i<=this.numLanes-1;i++){
-            const x=lerp(
-                this.left,
-                this.right,
-                i/this.numLanes
-            );
-                //if it's mid lanes make it dashed 
-       
-            context.setLineDash([20,20]);
-        
-        // drawing the lines
-        context.beginPath();
-        context.moveTo(x, this.top);
-        context.lineTo(x, this.bottom);
-        context.stroke()
-    }
-    context.setLineDash([]);
-    this.borders.forEach(border =>{
-        context.beginPath();
-        context.moveTo(border[0].x, border[0].y);
-        context.lineTo(border[1].x, border[1].y)
-        context.stroke();
-    });
-      
+    draw(context) {
+        context.save();
+        context.lineWidth = 5;
+        context.strokeStyle = "white";
+
+        context.setLineDash([20, 20]);
+        for (let i = 1; i <= this.numLanes - 1; i++) {
+            const x = lerp(this.left, this.right, i / this.numLanes);
+            context.beginPath();
+            context.moveTo(x, this.top);
+            context.lineTo(x, this.bottom);
+            context.stroke();
+        }
+
+        context.setLineDash([]);
+        this.borders.forEach(border => {
+            context.beginPath();
+            context.moveTo(border[0].x, border[0].y);
+            context.lineTo(border[1].x, border[1].y);
+            context.stroke();
+        });
+
+        context.restore();
     }
 }

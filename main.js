@@ -349,24 +349,34 @@ function animate(time) {
     document.getElementById("bestDistDisplay").textContent =
         "Best ever: " + bestDistanceEver + "m  |  This gen: " + Math.max(thisGen, liveDistThisGen) + "m";
 
+    carContext.clearRect(0, 0, carCanvas.width, carCanvas.height);
+    networkContext.clearRect(0, 0, networkCanvas.width, networkCanvas.height);
+
     carContext.save();
     carContext.translate(0, -optimalCar.y + carCanvas.height * 0.7);
+
     road.draw(carContext);
+
     for (let i = 0; i < traffic.length; i++) {
         traffic[i].draw(carContext);
     }
+
+    carContext.save();
     carContext.globalAlpha = 0.2;
-    // Skip the overlay in the alpha pass so it isn't double-drawn.
     for (let i = 0; i < cars.length; i++) {
         if (i === generationOverlayIndex) continue;
         cars[i].draw(carContext, "purple");
     }
-    carContext.globalAlpha = 1;
+    carContext.restore();
+
     overlayCar.draw(carContext, "purple", true);
 
     carContext.restore();
+
+    networkContext.save();
     networkContext.lineDashOffset = -time / 50;
     NetworkVisualizer.drawNetwork(networkContext, overlayCar.autoPilot);
+    networkContext.restore();
 
     requestAnimationFrame(animate);
 }

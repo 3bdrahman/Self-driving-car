@@ -1,17 +1,18 @@
 /**
  * Vehicle Perception Sensor Module
- * 5 long-range radar rays (280px range) for early obstacle perception
- * and smooth, proactive lane changing.
+ * 9 long-range radar rays (320px range) covering a 144 degree forward arc
+ * for early obstacle perception, dense side awareness, and smooth proactive
+ * lane changing under heavy traffic.
  */
 
 class Sensor {
     constructor(car) {
         this.car = car;
-        this.rayCount = 5;
-        this.rayLength = 280;
-        this.raySpread = Math.PI * 0.6; // 108 degree forward arc
+        this.rayCount = 9;
+        this.rayLength = 320;
+        this.raySpread = Math.PI * 0.8; // 144 degree forward arc
 
-        // 5 rays x 2 channels (distance + object kind: border / traffic) = 10 inputs
+        // 9 rays x 2 channels (distance + object kind: border / traffic) = 18 inputs
         this.inputSize = this.rayCount * 2;
 
         this.rays = [];

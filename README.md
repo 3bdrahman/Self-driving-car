@@ -9,13 +9,13 @@ A high-performance, production-grade 2D self-driving car simulation powered by a
 ## 🌟 Key Highlights & Features (v3.0)
 
 ### 🧠 Neural Network & Genetic Evolution
-- **Feed-Forward Architecture**: 11 input perception signals $\rightarrow$ 6 hidden neurons $\rightarrow$ 4 binary motor output neurons (Accelerate, Steer Left, Steer Right, Reverse).
+- **Feed-Forward Architecture**: 19 input perception signals $\rightarrow$ 6 hidden neurons $\rightarrow$ 4 binary motor output neurons (Accelerate, Steer Left, Steer Right, Reverse).
 - **500-Car Mutant Swarm**: Scaled parallel population with adjustable mutation rates ($1\% - 50\%$) for high genetic diversity and rapid convergence.
 - **Strict Lifespan Evaluation**: Generations run until **all 500 agents** have completed their run, ensuring maximum fitness evaluation for every individual agent.
 - **Deterministic Leader Selection**: The active front-runner is mathematically tracked in real-time, locking camera and neural visualizer focus on the leading survivor.
 
 ### 📡 Radar Perception Engine
-- **280px Extended Sensor Range**: 5 forward perception rays covering a $135^\circ$ spread for early obstacle detection.
+- **320px Extended Sensor Range**: 9 forward perception rays covering a $144^\circ$ spread for early obstacle detection.
 - **Multi-Class Perception**: Differentiates between solid outer road borders and traffic obstacle vehicles.
 - **Normalized Lane Offset Input**: Provides the neural network with explicit lateral position awareness relative to lane centers.
 
@@ -45,7 +45,7 @@ A high-performance, production-grade 2D self-driving car simulation powered by a
 | `styles.css` | Modern glassmorphism UI, typography, HUD overlay, and toast notification styling |
 | `main.js` | Main simulation loop (60 FPS), traffic spawner, leader tracking, and storage handlers |
 | `car.js` | Vehicle physics, controls, sensor integration, lane centering, and 3-mode renderer |
-| `sensor.js` | 5-ray radar perception engine (280px range, spatial ray intersections) |
+| `sensor.js` | 9-ray radar perception engine (320px range, spatial ray intersections) |
 | `network.js` | Binary-step neural network, feed-forward matrix ops, mutation, and serialization |
 | `networkVisualizer.js` | Real-time animated neural network visualizer canvas |
 | `road.js` | Dynamic road border geometry, lane coordinates, and scrolling lane markers |

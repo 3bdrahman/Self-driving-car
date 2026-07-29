@@ -1,20 +1,19 @@
 /**
- * Road Architecture & Dynamic Geometry
- * Viewport-culled rendering, asphalt styling, lane calculations, and distance milestones.
+ * Clean Realistic Road Module
+ * Fixed proportional width (220px across 3 lanes), white borders, and dashed lane dividers.
  */
 
 class Road {
-    constructor(x, width, numLanes = 3) {
+    constructor(x, width = 220, numLanes = 3) {
         this.numLanes = numLanes;
         this.updateDimensions(x, width);
 
-        // Infinite road ceiling/floor limits
         const inf = 1000000;
         this.top = -inf;
         this.bottom = inf;
     }
 
-    updateDimensions(x, width) {
+    updateDimensions(x, width = 220) {
         this.x = x;
         this.width = width;
         this.left = x - width / 2;
@@ -31,111 +30,52 @@ class Road {
             [topLeft, bottomLeft],
             [topRight, bottomRight]
         ];
-
-        this.laneDividers = [];
-        for (let i = 1; i <= this.numLanes - 1; i++) {
-            const laneX = lerp(this.left, this.right, i / this.numLanes);
-            this.laneDividers.push([{ x: laneX, y: -inf }, { x: laneX, y: inf }]);
-        }
     }
 
     getLaneCenter(laneIndex) {
-        const clampedIndex = clamp(laneIndex, 0, this.numLanes - 1);
+        const clampedIndex = Math.max(0, Math.min(laneIndex, this.numLanes - 1));
         return this.left + this.laneWidth / 2 + clampedIndex * this.laneWidth;
     }
 
-    /**
-     * Viewport-culled road renderer. Only renders line segments within view range.
-     */
     draw(context, viewTop = -2000, viewBottom = 2000) {
         context.save();
 
+        const dashPeriod = 40;
+        const startY = Math.floor((viewTop - 150) / dashPeriod) * dashPeriod;
+        const endY = Math.ceil((viewBottom + 150) / dashPeriod) * dashPeriod;
+
         // 1. Dark Asphalt Surface
-        context.fillStyle = "#161625";
-        context.fillRect(this.left, viewTop - 100, this.width, (viewBottom - viewTop) + 200);
+        context.fillStyle = "#1e1e2e";
+        context.fillRect(this.left, startY, this.width, endY - startY);
 
-        // 2. Outer Shoulder Strips
-        context.fillStyle = "#10101c";
-        context.fillRect(this.left - 20, viewTop - 100, 20, (viewBottom - viewTop) + 200);
-        context.fillRect(this.right, viewTop - 100, 20, (viewBottom - viewTop) + 200);
-
-        // 3. Dashed Lane Dividers (Viewport Culled)
+        // 2. Dashed White Lane Dividers (World-Anchored)
         context.lineWidth = 4;
-        context.strokeStyle = "rgba(255, 255, 255, 0.4)";
-        context.setLineDash([24, 24]);
+        context.strokeStyle = "rgba(255, 255, 255, 0.8)";
+        context.setLineDash([20, 20]);
+        context.lineDashOffset = 0; // World coordinates move naturally via camera translation
 
         for (let i = 1; i <= this.numLanes - 1; i++) {
             const x = lerp(this.left, this.right, i / this.numLanes);
             context.beginPath();
-            context.moveTo(x, viewTop - 50);
-            context.lineTo(x, viewBottom + 50);
+            context.moveTo(x, startY);
+            context.lineTo(x, endY);
             context.stroke();
         }
 
-        // 4. Solid Glowing Road Borders
+        // 3. Solid White Road Borders
         context.setLineDash([]);
-        context.lineWidth = 6;
-        context.strokeStyle = "#38bdf8"; // Neon Cyan Blue
-        context.shadowColor = "#38bdf8";
-        context.shadowBlur = 12;
+        context.lineWidth = 5;
+        context.strokeStyle = "#ffffff";
 
-        // Left Border
         context.beginPath();
-        context.moveTo(this.left, viewTop - 50);
-        context.lineTo(this.left, viewBottom + 50);
+        context.moveTo(this.left, startY);
+        context.lineTo(this.left, endY);
         context.stroke();
 
-        // Right Border
         context.beginPath();
-        context.moveTo(this.right, viewTop - 50);
-        context.lineTo(this.right, viewBottom + 50);
+        context.moveTo(this.right, startY);
+        context.lineTo(this.right, endY);
         context.stroke();
-
-        // Reset Glow Shadow
-        context.shadowColor = "transparent";
-        context.shadowBlur = 0;
-
-        // 5. Distance Milestone Banners on Asphalt
-        this.drawMilestones(context, viewTop, viewBottom);
-
-        context.restore();
-    }
-
-    drawMilestones(context, viewTop, viewBottom) {
-        const milestoneInterval = 250; // Every 250 meters
-        const startY = Math.floor(viewTop / milestoneInterval) * milestoneInterval;
-        const endY = Math.ceil(viewBottom / milestoneInterval) * milestoneInterval;
-
-        context.save();
-        context.textAlign = "center";
-        context.textBaseline = "middle";
-        context.font = "700 13px 'JetBrains Mono', monospace";
-
-        for (let y = startY; y <= endY; y += milestoneInterval) {
-            const meters = Math.round(-y);
-            if (meters <= 0) continue;
-
-            // Transverse Milestone Line
-            context.strokeStyle = "rgba(56, 189, 248, 0.25)";
-            context.lineWidth = 2;
-            context.setLineDash([8, 8]);
-            context.beginPath();
-            context.moveTo(this.left, y);
-            context.lineTo(this.right, y);
-            context.stroke();
-
-            // Milestone Badge
-            const badgeText = `🚩 ${formatDistance(meters)}`;
-            context.fillStyle = "rgba(15, 23, 42, 0.8)";
-            context.fillRect(this.x - 55, y - 12, 110, 24);
-
-            context.strokeStyle = "rgba(56, 189, 248, 0.4)";
-            context.setLineDash([]);
-            context.strokeRect(this.x - 55, y - 12, 110, 24);
-
-            context.fillStyle = "#38bdf8";
-            context.fillText(badgeText, this.x, y);
-        }
 
         context.restore();
     }

@@ -1,10 +1,10 @@
 /**
- * Main Controller & Simulation Loop
- * Handles neuroevolution population lifecycle, speed-controlled physics loop,
- * dynamic traffic generation, telemetry HUD updates, and JSON brain persistence.
+ * Master Simulation & Performance Engine
+ * 500-car mutant swarm, 60 FPS performance, proportional road dimensions,
+ * non-overlapping traffic, pure distance-based leader selection, persistent brain state.
+ * Fully working Reset & Save buttons that clear localStorage, sprite cache, and restart generation 1 from scratch.
  */
 
-// ─── Canvas & Context Initialization ───────────────────────────────────────
 const carCanvas = document.getElementById("carCanvas");
 const networkCanvas = document.getElementById("networkCanvas");
 const carCtx = carCanvas.getContext("2d");
@@ -19,16 +19,18 @@ let generation = 1;
 let genStartTime = performance.now();
 let bestDistanceThisGen = 0;
 let bestReachedThisGen = 0;
-let bestDistanceThisGenAt = performance.now();
 let simSpeed = 1;
 let mutationRate = 0.1;
-let popSize = 300;
+const numCars = 500;
 let isPaused = false;
 
 const BEST_DIST_KEY = "sdc_bestDistanceEver";
-const BEST_BRAIN_KEY = "sdc_bestAutopilotBrain";
+const BEST_BRAIN_KEY = "sdc_bestAutopilot";
 
-// ─── Dynamic Canvas Sizing ────────────────────────────────────────────────
+const SPAWN_BEHIND_CULL = 1200;
+const SPAWN_TARGET = 30;
+
+// Dynamic Canvas Sizing
 function syncCanvasSizes() {
     const carPanel = document.getElementById("carPanel");
     const networkPanel = document.getElementById("networkPanel");
@@ -40,7 +42,7 @@ function syncCanvasSizes() {
             carCanvas.width = cw;
             carCanvas.height = ch;
             if (road) {
-                road.updateDimensions(carCanvas.width / 2, carCanvas.width * 0.65);
+                road.updateDimensions(carCanvas.width / 2, 220);
             }
         }
     }
@@ -55,19 +57,15 @@ function syncCanvasSizes() {
     }
 }
 
-// Initialize World Road
-road = new Road(window.innerWidth * 0.4, 300, 3);
+road = new Road(window.innerWidth * 0.4, 220, 3);
 syncCanvasSizes();
 window.addEventListener("resize", syncCanvasSizes);
 
-// ─── Traffic Generation Rules ──────────────────────────────────────────────
-const SPAWN_BEHIND_CULL = 1200;
-const SPAWN_TARGET = 50;
-
+// Traffic Spawning
 const LANE_SPEED_PROFILES = [
-    { min: 1.5, max: 2.5 }, // Lane 0: Trucks / Slow
-    { min: 2.5, max: 4.0 }, // Lane 1: Commuters
-    { min: 3.5, max: 5.5 }  // Lane 2: Fast
+    { min: 1.5, max: 2.2 },
+    { min: 2.2, max: 3.5 },
+    { min: 3.2, max: 4.8 }
 ];
 
 function laneMaxSpeed(lane) {
@@ -75,28 +73,39 @@ function laneMaxSpeed(lane) {
     return p.min + Math.random() * (p.max - p.min);
 }
 
+function canSpawnAt(lane, y) {
+    for (let i = 0; i < traffic.length; i++) {
+        const t = traffic[i];
+        const tLane = Math.floor((t.x - road.left) / road.laneWidth);
+        if (tLane === lane && Math.abs(t.y - y) < 160) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function spawnTrafficBlock(frontY) {
     const r = Math.random();
     let advanceY = 0;
 
-    if (r < 0.15) {
-        advanceY = 500 + Math.random() * 300;
-    } else if (r < 0.40) {
-        // Blockade scenario (2 cars blocking lanes)
-        const emptyLane = Math.floor(Math.random() * road.numLanes);
-        const y = frontY - 120 - Math.random() * 100;
+    if (r < 0.20) {
+        advanceY = 450 + Math.random() * 250;
+    } else if (r < 0.50) {
+        const openLane = Math.floor(Math.random() * road.numLanes);
+        const y = frontY - 140 - Math.random() * 80;
         for (let i = 0; i < road.numLanes; i++) {
-            if (i !== emptyLane) {
-                traffic.push(new Car(road.getLaneCenter(i), y, 30, 50, "dummy", laneMaxSpeed(i) * 0.8, getRandomTrafficColor()));
+            if (i !== openLane && canSpawnAt(i, y)) {
+                traffic.push(new Car(road.getLaneCenter(i), y, 30, 50, "dummy", laneMaxSpeed(i) * 0.85, getRandomTrafficColor()));
             }
         }
-        advanceY = 220 + Math.random() * 150;
+        advanceY = 260 + Math.random() * 150;
     } else {
-        // Single regular car
         const lane = Math.floor(Math.random() * road.numLanes);
-        const y = frontY - 120 - Math.random() * 150;
-        traffic.push(new Car(road.getLaneCenter(lane), y, 30, 50, "dummy", laneMaxSpeed(lane), getRandomTrafficColor()));
-        advanceY = 160 + Math.random() * 150;
+        const y = frontY - 140 - Math.random() * 100;
+        if (canSpawnAt(lane, y)) {
+            traffic.push(new Car(road.getLaneCenter(lane), y, 30, 50, "dummy", laneMaxSpeed(lane), getRandomTrafficColor()));
+        }
+        advanceY = 190 + Math.random() * 150;
     }
 
     return frontY - advanceY;
@@ -104,30 +113,44 @@ function spawnTrafficBlock(frontY) {
 
 function seedInitialTraffic() {
     traffic.length = 0;
-    let frontY = 100;
     for (let lane = 0; lane < road.numLanes; lane++) {
-        for (let i = 0; i < 15; i++) {
-            traffic.push(new Car(road.getLaneCenter(lane), 100 - i * 280, 30, 50, "dummy", laneMaxSpeed(lane), getRandomTrafficColor()));
+        for (let i = 0; i < 12; i++) {
+            const y = -180 - i * 320;
+            if (canSpawnAt(lane, y)) {
+                traffic.push(new Car(road.getLaneCenter(lane), y, 30, 50, "dummy", laneMaxSpeed(lane), getRandomTrafficColor()));
+            }
         }
     }
 }
 
-// ─── Population Setup & Tracking ─────────────────────────────────────────
-let bestDistanceEver = parseInt(localStorage.getItem(BEST_DIST_KEY), 10);
-if (!Number.isFinite(bestDistanceEver)) bestDistanceEver = 0;
-
-function createPopulation(count) {
+// Population Setup
+function generateDuplicates(num) {
     const list = [];
-    for (let i = 0; i < count; i++) {
-        list.push(new Car(road.getLaneCenter(1), 100, 30, 50, "autopilot", 7.0));
+    for (let i = 0; i < num; i++) {
+        list.push(new Car(road.getLaneCenter(1), 100, 30, 50, "autopilot", 6.5));
     }
     return list;
 }
 
-cars = createPopulation(popSize);
-optimalCar = cars[0];
+cars = generateDuplicates(numCars);
 
-// Load Saved Brain if Available
+const laneSet = cars.map(() => new Set());
+const laneChanges = new Array(cars.length).fill(0);
+const sameLaneFrames = new Array(cars.length).fill(0);
+const highSpeedFrames = new Array(cars.length).fill(0);
+const maxSpeedFrames = new Array(cars.length).fill(0);
+const brakeFrames = new Array(cars.length).fill(0);
+const stopFrames = new Array(cars.length).fill(0);
+const backwardsFrames = new Array(cars.length).fill(0);
+const anglePenaltyFrames = new Array(cars.length).fill(0);
+const laneCenterPenaltyFrames = new Array(cars.length).fill(0);
+const onDividerFrames = new Array(cars.length).fill(0);
+let prevLane = cars.map(() => -1);
+const survivalFrames = new Array(cars.length).fill(0);
+
+let bestDistanceEver = parseInt(localStorage.getItem(BEST_DIST_KEY), 10);
+if (!Number.isFinite(bestDistanceEver)) bestDistanceEver = 0;
+
 const savedBrainStr = localStorage.getItem(BEST_BRAIN_KEY);
 if (savedBrainStr) {
     const parsed = NeuralNetwork.deserialize(savedBrainStr);
@@ -136,21 +159,20 @@ if (savedBrainStr) {
 
 seedInitialTraffic();
 
-function seedFromBrain(brain) {
-    const elite = NeuralNetwork.clone(brain);
-    const freshCount = Math.floor(cars.length * 0.05);
-
-    for (let i = 0; i < cars.length; i++) {
-        if (i === 0) {
-            cars[i].autoPilot = NeuralNetwork.clone(elite); // Elite survivor exact clone
-        } else if (i < freshCount) {
-            cars[i].autoPilot = new NeuralNetwork([cars[i].sensor.inputSize, 12, 4]); // Fresh diversity
-        } else {
-            cars[i].autoPilot = NeuralNetwork.clone(elite);
-            const rate = mutationRate * (0.2 + (i / cars.length) * 0.8);
-            NeuralNetwork.mutate(cars[i].autoPilot, rate);
-        }
-    }
+function resetTrackingArrays() {
+    laneSet.forEach(s => s.clear());
+    laneChanges.fill(0);
+    sameLaneFrames.fill(0);
+    highSpeedFrames.fill(0);
+    maxSpeedFrames.fill(0);
+    brakeFrames.fill(0);
+    stopFrames.fill(0);
+    backwardsFrames.fill(0);
+    anglePenaltyFrames.fill(0);
+    laneCenterPenaltyFrames.fill(0);
+    onDividerFrames.fill(0);
+    prevLane.fill(-1);
+    survivalFrames.fill(0);
 }
 
 function resetCarPositions() {
@@ -163,15 +185,33 @@ function resetCarPositions() {
     }
 }
 
+function seedFromBrain(brain) {
+    const elite = NeuralNetwork.clone(brain);
+    const freshCount = Math.floor(cars.length * 0.05);
+    for (let i = 0; i < cars.length; i++) {
+        if (!brain.levels || brain.levels[0].inputs.length !== cars[i].sensor.inputSize + 1) {
+            cars[i].autoPilot = new NeuralNetwork([cars[i].sensor.inputSize + 1, 6, 4]);
+            continue;
+        }
+        cars[i].autoPilot = NeuralNetwork.clone(elite);
+        if (i === 0) continue;
+        if (i < freshCount) {
+            cars[i].autoPilot = new NeuralNetwork([cars[i].sensor.inputSize + 1, 6, 4]);
+        } else {
+            const rate = 0.05 + (i / cars.length) * 0.2;
+            NeuralNetwork.mutate(cars[i].autoPilot, rate);
+        }
+    }
+}
+
 function naturalize(elite) {
     generation++;
+    resetTrackingArrays();
     resetCarPositions();
     seedInitialTraffic();
-    const now = performance.now();
-    genStartTime = now;
+    genStartTime = performance.now();
     bestDistanceThisGen = 0;
     bestReachedThisGen = 0;
-    bestDistanceThisGenAt = now;
 
     if (elite && elite.autoPilot) {
         seedFromBrain(elite.autoPilot);
@@ -180,18 +220,18 @@ function naturalize(elite) {
     generationOverlayIndex = 0;
 }
 
-// ─── Simulation Step (Physics + Fitness) ──────────────────────────────────
+// Physics & Fitness Step
 function stepSimulation() {
-    const optimalY = optimalCar ? optimalCar.y : cars[0].y;
+    const currentFrontY = optimalCar ? optimalCar.y : cars[0].y;
 
-    // Cull old traffic far behind
+    // Cull traffic behind
     for (let i = traffic.length - 1; i >= 0; i--) {
-        if (traffic[i].y > optimalY + SPAWN_BEHIND_CULL) {
+        if (traffic[i].y > currentFrontY + SPAWN_BEHIND_CULL) {
             traffic.splice(i, 1);
         }
     }
 
-    // Maintain traffic density ahead
+    // Maintain ahead traffic density
     let frontmostY = Infinity;
     for (let i = 0; i < traffic.length; i++) {
         if (traffic[i].y < frontmostY) frontmostY = traffic[i].y;
@@ -199,74 +239,83 @@ function stepSimulation() {
 
     let safety = 50;
     while (traffic.length < SPAWN_TARGET && safety-- > 0) {
-        const nextY = frontmostY === Infinity ? optimalY - 600 : frontmostY;
+        const nextY = frontmostY === Infinity ? currentFrontY - 600 : frontmostY;
         frontmostY = spawnTrafficBlock(nextY);
     }
 
-    // Update Traffic
     for (let i = 0; i < traffic.length; i++) {
-        traffic[i].update(road.borders, []);
+        traffic[i].update(road.borders, [], road.left, road.width, road.numLanes);
     }
 
-    // Update Swarm Cars
     for (let i = 0; i < cars.length; i++) {
-        cars[i].update(road.borders, traffic);
+        cars[i].update(road.borders, traffic, road.left, road.width, road.numLanes);
 
         if (!cars[i].hit) {
-            const distance = -cars[i].y;
-            if (distance > bestDistanceThisGen) {
-                bestDistanceThisGen = distance;
-                bestDistanceThisGenAt = performance.now();
+            survivalFrames[i]++;
+            const laneIdx = Math.floor((cars[i].x - road.left) / road.laneWidth);
+            const clamped = clamp(laneIdx, 0, road.numLanes - 1);
+            const laneCenter = road.getLaneCenter(clamped);
+            const laneOffset = Math.abs(cars[i].x - laneCenter) / road.laneWidth;
+
+            if (!laneSet[i].has(clamped)) {
+                laneChanges[i]++;
             }
-            if (distance > bestReachedThisGen) {
-                bestReachedThisGen = distance;
+            laneSet[i].add(clamped);
+
+            if (clamped === prevLane[i]) {
+                sameLaneFrames[i]++;
+            } else {
+                sameLaneFrames[i] = 0;
+            }
+            prevLane[i] = clamped;
+
+            if (cars[i].speed > 3.0) highSpeedFrames[i]++;
+            if (cars[i].speed > cars[i].maxSpeed * 0.95) maxSpeedFrames[i]++;
+            laneCenterPenaltyFrames[i] += laneOffset;
+            if (laneOffset > 0.4) onDividerFrames[i]++;
+
+            if (cars[i].controls.backwards && cars[i].speed > 0) brakeFrames[i]++;
+            if (Math.abs(cars[i].speed) < 0.3) stopFrames[i]++;
+            if (cars[i].speed < -0.1) backwardsFrames[i]++;
+            anglePenaltyFrames[i] += Math.abs(cars[i].angle);
+
+            const d = -cars[i].y;
+            if (d > bestDistanceThisGen) {
+                bestDistanceThisGen = d;
+            }
+            if (d > bestReachedThisGen) {
+                bestReachedThisGen = d;
             }
         }
     }
 
-    // Select Current Optimal (Leading) Car by Fitness
+    // Leader is strictly the alive swarm car furthest ahead (minimum Y coordinate)
     const aliveCars = cars.filter(c => !c.hit);
 
     if (aliveCars.length > 0) {
-        let maxFit = -Infinity;
-        let leadCar = aliveCars[0];
-
-        for (let i = 0; i < aliveCars.length; i++) {
-            const c = aliveCars[i];
-            const dist = -c.y;
-            const laneIdx = Math.floor((c.x - road.left) / road.laneWidth);
-            const clamped = clamp(laneIdx, 0, road.numLanes - 1);
-            const laneCenter = road.getLaneCenter(clamped);
-            const laneOffset = Math.abs(c.x - laneCenter) / road.laneWidth;
-
-            // Correct per-step fitness equation
-            const fitness = dist + (c.speed * 2) - (laneOffset * 1.5) - (Math.abs(c.angle) * 5);
-            if (fitness > maxFit) {
-                maxFit = fitness;
-                leadCar = c;
+        let leader = aliveCars[0];
+        for (let i = 1; i < aliveCars.length; i++) {
+            if (aliveCars[i].y < leader.y) {
+                leader = aliveCars[i];
             }
         }
-        optimalCar = leadCar;
+        optimalCar = leader;
+        generationOverlayIndex = cars.indexOf(leader);
     }
 
-    // Update Global High Score
-    const liveDist = Math.round(bestDistanceThisGen);
-    if (liveDist > bestDistanceEver) {
-        bestDistanceEver = liveDist;
+    const liveDistThisGen = Math.round(bestDistanceThisGen);
+    if (liveDistThisGen > bestDistanceEver) {
+        bestDistanceEver = liveDistThisGen;
         try { localStorage.setItem(BEST_DIST_KEY, String(bestDistanceEver)); } catch (_) {}
     }
 
-    // Check Next Generation Trigger Conditions
-    const now = performance.now();
-    const stalled = (now - bestDistanceThisGenAt) > 25000; // 25s stall limit
-    const collapsed = aliveCars.length < cars.length * 0.05;
-
-    if (aliveCars.length === 0 || collapsed || stalled) {
+    // Generations end strictly ONLY when ALL cars have crashed
+    if (aliveCars.length === 0) {
         naturalize(optimalCar || cars[0]);
     }
 }
 
-// ─── Main Render Loop ──────────────────────────────────────────────────────
+// Main Render Loop (60 FPS)
 function animate(time = 0) {
     syncCanvasSizes();
 
@@ -276,82 +325,108 @@ function animate(time = 0) {
         }
     }
 
+    const overlayCar = optimalCar || cars[generationOverlayIndex] || cars[0];
     const aliveCount = cars.filter(c => !c.hit).length;
-    const thisGenDist = Math.round(-(optimalCar ? optimalCar.y : 0));
+    const thisGenDist = Math.round(-(overlayCar ? overlayCar.y : 0));
 
-    // Update Telemetry HUD Elements
-    document.getElementById("genDisplay").textContent = `Generation: ${generation}`;
-    document.getElementById("aliveDisplay").textContent = `Alive: ${aliveCount} / ${cars.length}`;
+    document.getElementById("genDisplay").textContent = "Generation: " + generation;
+    document.getElementById("aliveDisplay").textContent = "Alive: " + aliveCount + " / " + cars.length;
     document.getElementById("bestDistDisplay").textContent =
-        `Best Ever: ${formatDistance(bestDistanceEver)}  |  This Gen: ${formatDistance(Math.max(thisGenDist, bestDistanceThisGen))}`;
+        "Best ever: " + formatDistance(bestDistanceEver) + "  |  This gen: " + formatDistance(Math.max(thisGenDist, Math.round(bestDistanceThisGen)));
 
-    // Clear Canvases
     carCtx.clearRect(0, 0, carCanvas.width, carCanvas.height);
     networkCtx.clearRect(0, 0, networkCanvas.width, networkCanvas.height);
 
-    // Camera follow matrix centered on optimal car
     carCtx.save();
-    const cameraY = -optimalCar.y + carCanvas.height * 0.7;
+    const cameraY = -(overlayCar ? overlayCar.y : 0) + carCanvas.height * 0.7;
     carCtx.translate(0, cameraY);
 
-    const viewTop = optimalCar.y - carCanvas.height * 0.7;
-    const viewBottom = optimalCar.y + carCanvas.height * 0.3;
+    const viewTop = (overlayCar ? overlayCar.y : 0) - carCanvas.height * 0.7;
+    const viewBottom = (overlayCar ? overlayCar.y : 0) + carCanvas.height * 0.3;
 
-    // Draw World (Road + Milestones)
     road.draw(carCtx, viewTop, viewBottom);
 
-    // Draw Traffic
     for (let i = 0; i < traffic.length; i++) {
         if (traffic[i].y >= viewTop - 100 && traffic[i].y <= viewBottom + 100) {
             traffic[i].draw(carCtx, "dummy");
         }
     }
 
-    // Draw Swarm (Ghost cars)
+    // Only draw active (alive) ghost cars
+    carCtx.save();
     for (let i = 0; i < cars.length; i++) {
-        if (cars[i] === optimalCar) continue;
-        if (cars[i].y >= viewTop - 100 && cars[i].y <= viewBottom + 100) {
+        if (cars[i] === overlayCar) continue;
+        if (!cars[i].hit && cars[i].y >= viewTop - 100 && cars[i].y <= viewBottom + 100) {
             cars[i].draw(carCtx, "ghost");
         }
     }
+    carCtx.restore();
 
-    // Draw Elite Model on Top with Sensor Rays
-    if (optimalCar) {
-        optimalCar.draw(carCtx, "best", true);
+    // Highlight the current front-running best car
+    if (overlayCar) {
+        overlayCar.draw(carCtx, "best", true);
     }
 
     carCtx.restore();
 
-    // Draw Neural Network Visualizer
-    if (networkCanvas.width > 0 && optimalCar && optimalCar.autoPilot) {
-        NetworkVisualizer.drawNetwork(networkCtx, optimalCar.autoPilot);
+    if (networkCanvas.width > 0 && overlayCar && overlayCar.autoPilot) {
+        networkCtx.save();
+        networkCtx.lineDashOffset = -time / 50;
+        NetworkVisualizer.drawNetwork(networkCtx, overlayCar.autoPilot);
+        networkCtx.restore();
     }
 
     requestAnimationFrame(animate);
 }
 
-// Start Loop
 requestAnimationFrame(animate);
 
-// ─── External Controls & UI Event Handlers ────────────────────────────────
-function saveBrain() {
-    if (optimalCar && optimalCar.autoPilot) {
-        const json = NeuralNetwork.serialize(optimalCar.autoPilot);
-        localStorage.setItem(BEST_BRAIN_KEY, json);
-        alert("💾 Brain successfully saved to Local Storage!");
-    }
+// Helper for user feedback toast notifications
+function showToast(msg) {
+    const toast = document.getElementById("toastNotification");
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.remove("hidden");
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+        toast.classList.add("hidden");
+    }, 2800);
 }
 
+// Storage & Control Handlers
+function saveBrain() {
+    if (optimalCar && optimalCar.autoPilot) {
+        const jsonStr = NeuralNetwork.serialize(optimalCar.autoPilot);
+        localStorage.setItem(BEST_BRAIN_KEY, jsonStr);
+        showToast("💾 Model saved to browser storage!");
+    }
+}
+function save() { saveBrain(); }
+
 function resetBrain() {
-    localStorage.removeItem(BEST_BRAIN_KEY);
-    localStorage.removeItem(BEST_DIST_KEY);
+    try {
+        localStorage.removeItem(BEST_BRAIN_KEY);
+        localStorage.removeItem(BEST_DIST_KEY);
+    } catch (_) {}
+
+    if (typeof spriteCache !== "undefined" && spriteCache.clear) {
+        spriteCache.clear();
+    }
+
     bestDistanceEver = 0;
+    bestDistanceThisGen = 0;
+    bestReachedThisGen = 0;
     generation = 1;
-    cars = createPopulation(popSize);
+
+    cars = generateDuplicates(numCars);
+    resetTrackingArrays();
+    resetCarPositions();
     seedInitialTraffic();
     optimalCar = cars[0];
-    alert("🗑 Brain & high scores reset!");
+    generationOverlayIndex = 0;
+    showToast("🗑 Storage cleared! Restarted Gen 1.");
 }
+function destroy() { resetBrain(); }
 
 function exportBrainJSON() {
     if (!optimalCar || !optimalCar.autoPilot) return;
@@ -360,9 +435,10 @@ function exportBrainJSON() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `sdc-brain-gen${generation}-${Date.now()}.json`;
+    a.download = `sdc-brain-gen${generation}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    showToast("📤 Model exported to JSON file!");
 }
 
 function importBrainJSON(event) {
@@ -373,9 +449,9 @@ function importBrainJSON(event) {
         const brain = NeuralNetwork.deserialize(e.target.result);
         if (brain) {
             seedFromBrain(brain);
-            alert("📥 Neural Network brain successfully imported!");
+            showToast("📥 Model imported successfully!");
         } else {
-            alert("❌ Invalid brain JSON file format!");
+            showToast("❌ Failed to parse imported JSON file.");
         }
     };
     reader.readAsText(file);
@@ -387,7 +463,6 @@ function togglePause() {
     if (btn) btn.textContent = isPaused ? "▶ Resume" : "⏸ Pause";
 }
 
-// Attach Slider Handlers
 document.addEventListener("DOMContentLoaded", () => {
     const speedSlider = document.getElementById("simSpeed");
     const speedLabel = document.getElementById("speedLabel");

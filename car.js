@@ -1,14 +1,13 @@
 /**
  * Car Module & Pre-rendered Sprite Cache
- * Implements vehicle dynamics, polygon creation, AABB collision check,
- * and zero-composite offscreen sprite rendering.
+ * Vehicle motion mechanics with continuous responsive steering,
+ * organic lane-centering spring stabilization, polygon intersection, and 3 render modes.
  */
 
 const CAR_IMG_SRC = "car.png";
 const carImage = new Image();
 carImage.src = CAR_IMG_SRC;
 
-// Offscreen sprite cache for tinted cars to avoid expensive composite operations per frame
 const spriteCache = new Map();
 
 function getTintedCarSprite(color, width, height) {
@@ -24,9 +23,11 @@ function getTintedCarSprite(color, width, height) {
 
     if (carImage.complete && carImage.naturalWidth > 0) {
         ctx.drawImage(carImage, 0, 0, width, height);
+
         ctx.globalCompositeOperation = "multiply";
         ctx.fillStyle = color;
         ctx.fillRect(0, 0, width, height);
+
         ctx.globalCompositeOperation = "destination-in";
         ctx.drawImage(carImage, 0, 0, width, height);
     } else {
@@ -50,11 +51,12 @@ class Car {
         this.angle = 0;
         this.friction = 0.05;
         this.color = color;
+        this.controlType = controlType;
 
         this.useAutoPilot = controlType === "autopilot";
         if (controlType !== "dummy") {
             this.sensor = new Sensor(this);
-            this.autoPilot = new NeuralNetwork([this.sensor.inputSize, 12, 4]);
+            this.autoPilot = new NeuralNetwork([this.sensor.inputSize + 1, 6, 4]);
         }
 
         this.controls = new Controls(controlType);
@@ -62,29 +64,28 @@ class Car {
         this.polygon = this.createPolygon();
     }
 
-    update(roadBorders, traffic) {
+    update(roadBorders, traffic, roadLeft = 0, roadWidth = 220, numLanes = 3) {
         if (!this.hit) {
-            this.move();
+            this.move(roadLeft, roadWidth, numLanes);
             this.polygon = this.createPolygon();
             this.hit = this.isHit(roadBorders, traffic);
         }
 
-        if (this.sensor) {
+        if (this.sensor && !this.hit) {
             this.sensor.update(roadBorders, traffic);
-            const inputs = this.encodeSensorInputs(this.sensor.readings);
+            const inputs = this.encodeSensorInputs(this.sensor.readings, roadLeft, roadWidth, numLanes);
             const outputs = NeuralNetwork.feedForward(inputs, this.autoPilot);
 
             if (this.useAutoPilot) {
-                // Tanh outputs are in [-1..1]; threshold > 0 activates control
-                this.controls.forward = outputs[0] > 0;
-                this.controls.left = outputs[1] > 0;
-                this.controls.right = outputs[2] > 0;
-                this.controls.backwards = outputs[3] > 0;
+                this.controls.forward = true;
+                this.controls.left = outputs[1] === 1;
+                this.controls.right = outputs[2] === 1;
+                this.controls.backwards = false;
             }
         }
     }
 
-    move() {
+    move(roadLeft = 0, roadWidth = 220, numLanes = 3) {
         if (this.controls.forward) {
             this.speed += this.acceleration;
         }
@@ -94,19 +95,27 @@ class Car {
 
         if (this.speed !== 0) {
             const flip = this.speed > 0 ? 1 : -1;
+            // Responsive automotive steering rate
+            const turnRate = 0.024 * (Math.abs(this.speed) / (this.maxSpeed || 1.0));
+
             if (this.controls.right) {
-                this.angle -= 0.04 * flip;
+                this.angle -= turnRate * flip;
             }
             if (this.controls.left) {
-                this.angle += 0.04 * flip;
+                this.angle += turnRate * flip;
             }
         }
 
         if (this.speed > this.maxSpeed) {
             this.speed = this.maxSpeed;
         }
-        if (this.speed < -this.maxSpeed / 2) {
-            this.speed = -this.maxSpeed / 2;
+
+        if (this.useAutoPilot) {
+            if (this.speed < 0) this.speed = 0;
+        } else {
+            if (this.speed < -this.maxSpeed / 2) {
+                this.speed = -this.maxSpeed / 2;
+            }
         }
 
         if (this.speed > 0) {
@@ -120,12 +129,31 @@ class Car {
             this.speed = 0;
         }
 
-        // Automatic center alignment dampening
+        // Dummy traffic obstacle cars move straight down their assigned spawn lane
+        if (this.controlType === "dummy") {
+            this.y -= Math.cos(this.angle) * this.speed;
+            return;
+        }
+
+        // Organic Lane-Centering Spring Stabilization when not actively steering
         if (this.speed !== 0 && !this.controls.left && !this.controls.right) {
             if (this.angle > 0) {
-                this.angle = Math.max(0, this.angle - 0.01);
+                this.angle = Math.max(0, this.angle - 0.02);
             } else if (this.angle < 0) {
-                this.angle = Math.min(0, this.angle + 0.01);
+                this.angle = Math.min(0, this.angle + 0.02);
+            }
+
+            if (roadWidth > 0) {
+                const laneW = roadWidth / numLanes;
+                const relX = this.x - roadLeft;
+                const currentLane = clamp(Math.floor(relX / laneW), 0, numLanes - 1);
+                const laneCenterX = roadLeft + laneW / 2 + currentLane * laneW;
+                const offset = laneCenterX - this.x;
+
+                // Soft 4% restoring nudge toward lane center without locking micro-adjustments
+                if (Math.abs(offset) > 2) {
+                    this.x += offset * 0.04;
+                }
             }
         }
 
@@ -149,10 +177,7 @@ class Car {
         return false;
     }
 
-    /**
-     * Converts sensor readings (9 rays x 2 channels = 18 inputs) into normalized neural inputs.
-     */
-    encodeSensorInputs(readings) {
+    encodeSensorInputs(readings, roadLeft = 0, roadWidth = 220, numLanes = 3) {
         const inputs = [];
         const kindMap = { border: 1.0, traffic: 0.5 };
         for (const r of readings) {
@@ -162,6 +187,14 @@ class Car {
                 inputs.push(1 - r.offset, kindMap[r.type] ?? 0);
             }
         }
+
+        const laneW = roadWidth / numLanes;
+        const relX = this.x - roadLeft;
+        const currentLane = clamp(Math.floor(relX / laneW), 0, numLanes - 1);
+        const targetCenterX = roadLeft + laneW / 2 + currentLane * laneW;
+        const normalizedOffset = (this.x - targetCenterX) / (laneW / 2);
+        inputs.push(clamp(normalizedOffset, -1.0, 1.0));
+
         return inputs;
     }
 
@@ -196,7 +229,7 @@ class Car {
             context.save();
             context.translate(this.x, this.y);
             context.rotate(-this.angle);
-            context.fillStyle = "rgba(139, 92, 246, 0.25)"; // Semi-transparent purple
+            context.fillStyle = "rgba(100, 60, 200, 0.35)";
             context.beginPath();
             context.roundRect(-this.width / 2, -this.height / 2, this.width, this.height, 4);
             context.fill();
@@ -208,11 +241,11 @@ class Car {
         context.translate(this.x, this.y);
         context.rotate(-this.angle);
 
-        const activeColor = this.hit ? "#ef4444" : (mode === "best" ? "#10b981" : this.color);
+        const activeColor = this.hit ? "red" : (mode === "best" ? "#00ff88" : this.color);
 
         if (mode === "best" && !this.hit) {
-            context.shadowColor = "#10b981";
-            context.shadowBlur = 16;
+            context.shadowColor = "#00ff88";
+            context.shadowBlur = 18;
         }
 
         const sprite = getTintedCarSprite(activeColor, this.width, this.height);

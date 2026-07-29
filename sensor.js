@@ -1,16 +1,17 @@
 /**
  * Vehicle Perception Sensor Module
- * Casts multi-channel radar rays to detect road boundaries and traffic obstacles.
+ * 5 long-range radar rays (280px range) for early obstacle perception
+ * and smooth, proactive lane changing.
  */
 
 class Sensor {
     constructor(car) {
         this.car = car;
-        this.rayCount = 9;
-        this.rayLength = 260;
-        this.raySpread = Math.PI * 0.75;
+        this.rayCount = 5;
+        this.rayLength = 280;
+        this.raySpread = Math.PI * 0.6; // 108 degree forward arc
 
-        // 9 rays x 2 channels (distance + object kind: border / traffic) = 18 inputs
+        // 5 rays x 2 channels (distance + object kind: border / traffic) = 10 inputs
         this.inputSize = this.rayCount * 2;
 
         this.rays = [];
@@ -38,10 +39,14 @@ class Sensor {
             }
         }
 
-        // Check traffic vehicles
+        // Fast spatial filter for traffic
+        const carY = this.car.y;
+        const carX = this.car.x;
+        const limit = this.rayLength + 80;
+
         for (let i = 0; i < traffic.length; i++) {
             const t = traffic[i];
-            if (Math.abs(this.car.y - t.y) > this.rayLength + 100 || Math.abs(this.car.x - t.x) > this.rayLength + 100) {
+            if (Math.abs(carY - t.y) > limit || Math.abs(carX - t.x) > limit) {
                 continue;
             }
 
@@ -97,15 +102,13 @@ class Sensor {
                 isHit = true;
             }
 
-            // Ray segment to hit point
             context.beginPath();
             context.lineWidth = 2;
-            context.strokeStyle = isHit ? "#ef4444" : "#10b981"; // Green ray, turns Red on hit
+            context.strokeStyle = isHit ? "#ef4444" : "#00ff88";
             context.moveTo(this.rays[i][0].x, this.rays[i][0].y);
             context.lineTo(end.x, end.y);
             context.stroke();
 
-            // Ray segment past hit point to max length
             context.beginPath();
             context.lineWidth = 1;
             context.strokeStyle = "rgba(255, 255, 255, 0.15)";
@@ -113,7 +116,6 @@ class Sensor {
             context.lineTo(this.rays[i][1].x, this.rays[i][1].y);
             context.stroke();
 
-            // Hit point indicator dot
             if (isHit) {
                 context.beginPath();
                 context.arc(end.x, end.y, 4, 0, Math.PI * 2);

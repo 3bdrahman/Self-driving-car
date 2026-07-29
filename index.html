@@ -21,17 +21,21 @@
         <div id="hud">
             <div id="infoPanel">
                 <span id="genDisplay">Generation: 1</span>
-                <span id="aliveDisplay">Alive: 300 / 300</span>
-                <span id="bestDistDisplay">Best Ever: 0 m  |  This Gen: 0 m</span>
+                <span id="aliveDisplay">Alive: 500 / 500</span>
+                <span id="bestDistDisplay">Best ever: 0m  |  This gen: 0m</span>
             </div>
 
+            <!-- Clarified & Explicitly Labeled Storage Actions -->
             <div id="storageButtons">
-                <button class="btn" onclick="saveBrain()">💾 Save</button>
-                <button class="btn btn-danger" onclick="resetBrain()">🗑 Reset</button>
-                <button class="btn" onclick="exportBrainJSON()">📤 Export</button>
-                <button class="btn" onclick="document.getElementById('importFile').click()">📥 Import</button>
+                <button class="btn" title="Save best model to browser local storage" onclick="saveBrain()">💾 Save (Browser)</button>
+                <button class="btn btn-danger" title="Clear saved models & restart Gen 1 from scratch" onclick="resetBrain()">🗑 Reset Storage</button>
+                <button class="btn" title="Download best model as JSON file to disk" onclick="exportBrainJSON()">📤 Export File</button>
+                <button class="btn" title="Load model from JSON file into current population" onclick="document.getElementById('importFile').click()">📥 Import File</button>
                 <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importBrainJSON(event)">
             </div>
+
+            <!-- Toast notification for storage events -->
+            <div id="toastNotification" class="toast hidden"></div>
 
             <div id="legend">
                 <div class="legend-item">
@@ -40,7 +44,7 @@
                 </div>
                 <div class="legend-item">
                     <span class="legend-swatch" style="background: rgba(139, 92, 246, 0.5);"></span>
-                    <span>Mutant Swarm (300)</span>
+                    <span>Mutant Swarm (500)</span>
                 </div>
                 <div class="legend-item">
                     <span class="legend-swatch" style="background: #ef4444;"></span>

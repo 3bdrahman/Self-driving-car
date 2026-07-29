@@ -1,7 +1,6 @@
 /**
- * Neuroevolution Neural Network Architecture
- * Multi-layer Perceptron with Tanh activation, Crossover, Gaussian Mutation,
- * and JSON import/export serialization.
+ * Binary Step Neuroevolution Network
+ * Provides clean 0/1 discrete outputs for forward, left, right, and backwards control.
  */
 
 class NeuralNetwork {
@@ -20,67 +19,27 @@ class NeuralNetwork {
         return outputs;
     }
 
-    /**
-     * Mutates weights and biases using smooth interpolation and gaussian perturbations.
-     * @param {NeuralNetwork} network 
-     * @param {number} amount - Mutation strength [0..1]
-     */
-    static mutate(network, amount = 0.1) {
+    static mutate(network, amount = 1) {
         network.levels.forEach(level => {
             for (let i = 0; i < level.biases.length; i++) {
-                if (Math.random() < amount) {
-                    level.biases[i] = lerp(
-                        level.biases[i],
+                level.biases[i] = lerp(
+                    level.biases[i],
+                    Math.random() * 2 - 1,
+                    amount
+                );
+            }
+            for (let i = 0; i < level.weights.length; i++) {
+                for (let j = 0; j < level.weights[i].length; j++) {
+                    level.weights[i][j] = lerp(
+                        level.weights[i][j],
                         Math.random() * 2 - 1,
                         amount
                     );
                 }
             }
-            for (let i = 0; i < level.weights.length; i++) {
-                for (let j = 0; j < level.weights[i].length; j++) {
-                    if (Math.random() < amount) {
-                        level.weights[i][j] = lerp(
-                            level.weights[i][j],
-                            Math.random() * 2 - 1,
-                            amount
-                        );
-                    }
-                }
-            }
         });
     }
 
-    /**
-     * Uniform crossover between two parent neural networks.
-     */
-    static crossover(parentA, parentB) {
-        const child = NeuralNetwork.clone(parentA);
-        for (let l = 0; l < child.levels.length; l++) {
-            const levelC = child.levels[l];
-            const levelB = parentB.levels[l];
-
-            if (!levelB) continue;
-
-            for (let i = 0; i < levelC.biases.length; i++) {
-                if (Math.random() < 0.5) {
-                    levelC.biases[i] = levelB.biases[i];
-                }
-            }
-
-            for (let i = 0; i < levelC.weights.length; i++) {
-                for (let j = 0; j < levelC.weights[i].length; j++) {
-                    if (Math.random() < 0.5) {
-                        levelC.weights[i][j] = levelB.weights[i][j];
-                    }
-                }
-            }
-        }
-        return child;
-    }
-
-    /**
-     * Creates a deep independent copy of a network.
-     */
     static clone(network) {
         if (!network || !network.levels) return null;
         const counts = [network.levels[0].inputs.length];
@@ -103,9 +62,6 @@ class NeuralNetwork {
         return cloned;
     }
 
-    /**
-     * Serializes network to clean JSON object format with metadata schema.
-     */
     static serialize(network) {
         return JSON.stringify({
             version: 2,
@@ -119,9 +75,6 @@ class NeuralNetwork {
         });
     }
 
-    /**
-     * Deserializes JSON string back into a NeuralNetwork instance.
-     */
     static deserialize(jsonString) {
         try {
             const data = typeof jsonString === "string" ? JSON.parse(jsonString) : jsonString;
@@ -148,13 +101,13 @@ class NeuralNetwork {
 
 class Level {
     constructor(inputCount, outputCount) {
-        this.inputs = new Array(inputCount).fill(0);
-        this.outputs = new Array(outputCount).fill(0);
-        this.biases = new Array(outputCount).fill(0);
+        this.inputs = new Array(inputCount);
+        this.outputs = new Array(outputCount);
+        this.biases = new Array(outputCount);
         this.weights = [];
 
         for (let i = 0; i < inputCount; i++) {
-            this.weights[i] = new Array(outputCount).fill(0);
+            this.weights[i] = new Array(outputCount);
         }
 
         Level.randomize(this);
@@ -163,8 +116,7 @@ class Level {
     static randomize(level) {
         for (let i = 0; i < level.inputs.length; i++) {
             for (let j = 0; j < level.outputs.length; j++) {
-                // Xavier/Glorot initialization scale
-                level.weights[i][j] = (Math.random() * 2 - 1) * Math.sqrt(2 / level.inputs.length);
+                level.weights[i][j] = Math.random() * 2 - 1;
             }
         }
         for (let i = 0; i < level.biases.length; i++) {
@@ -174,7 +126,7 @@ class Level {
 
     static feedForward(givenInputs, level) {
         for (let i = 0; i < level.inputs.length; i++) {
-            level.inputs[i] = givenInputs[i] || 0;
+            level.inputs[i] = givenInputs[i];
         }
 
         for (let i = 0; i < level.outputs.length; i++) {
@@ -182,9 +134,12 @@ class Level {
             for (let j = 0; j < level.inputs.length; j++) {
                 sum += level.inputs[j] * level.weights[j][i];
             }
-            // Hyperbolic tangent (tanh) activation for smooth continuous output range [-1..1]
-            // Threshold step for discrete control output compatibility
-            level.outputs[i] = Math.tanh(sum - level.biases[i]);
+
+            if (sum > level.biases[i]) {
+                level.outputs[i] = 1;
+            } else {
+                level.outputs[i] = 0;
+            }
         }
 
         return level.outputs;

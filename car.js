@@ -56,7 +56,7 @@ class Car {
         this.useAutoPilot = controlType === "autopilot";
         if (controlType !== "dummy") {
             this.sensor = new Sensor(this);
-            this.autoPilot = new NeuralNetwork([this.sensor.inputSize + 1, 6, 4]);
+            this.autoPilot = new NeuralNetwork(NeuralNetwork.getArchitecture(this.sensor.inputSize + 1));
         }
 
         this.controls = new Controls(controlType);
@@ -77,10 +77,10 @@ class Car {
             const outputs = NeuralNetwork.feedForward(inputs, this.autoPilot);
 
             if (this.useAutoPilot) {
-                this.controls.forward = true;
+                this.controls.forward = outputs[0] === 1;
                 this.controls.left = outputs[1] === 1;
                 this.controls.right = outputs[2] === 1;
-                this.controls.backwards = false;
+                this.controls.backwards = outputs[3] === 1;
             }
         }
     }

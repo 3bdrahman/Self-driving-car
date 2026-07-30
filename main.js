@@ -95,7 +95,7 @@ function spawnTrafficBlock(frontY) {
         const y = frontY - 140 - Math.random() * 80;
         for (let i = 0; i < road.numLanes; i++) {
             if (i !== openLane && canSpawnAt(i, y)) {
-                traffic.push(new Car(road.getLaneCenter(i), y, 30, 50, "dummy", laneMaxSpeed(i) * 0.85, getRandomTrafficColor()));
+                traffic.push(new Car(road.getLaneCenter(i), y, 42, 70, "dummy", laneMaxSpeed(i) * 0.85, getRandomTrafficColor()));
             }
         }
         advanceY = 260 + Math.random() * 150;
@@ -103,7 +103,7 @@ function spawnTrafficBlock(frontY) {
         const lane = Math.floor(Math.random() * road.numLanes);
         const y = frontY - 140 - Math.random() * 100;
         if (canSpawnAt(lane, y)) {
-            traffic.push(new Car(road.getLaneCenter(lane), y, 30, 50, "dummy", laneMaxSpeed(lane), getRandomTrafficColor()));
+            traffic.push(new Car(road.getLaneCenter(lane), y, 42, 70, "dummy", laneMaxSpeed(lane), getRandomTrafficColor()));
         }
         advanceY = 190 + Math.random() * 150;
     }
@@ -113,13 +113,9 @@ function spawnTrafficBlock(frontY) {
 
 function seedInitialTraffic() {
     traffic.length = 0;
-    for (let lane = 0; lane < road.numLanes; lane++) {
-        for (let i = 0; i < 12; i++) {
-            const y = -180 - i * 320;
-            if (canSpawnAt(lane, y)) {
-                traffic.push(new Car(road.getLaneCenter(lane), y, 30, 50, "dummy", laneMaxSpeed(lane), getRandomTrafficColor()));
-            }
-        }
+    let currentY = -180;
+    for (let i = 0; i < 12; i++) {
+        currentY = spawnTrafficBlock(currentY);
     }
 }
 
@@ -127,7 +123,7 @@ function seedInitialTraffic() {
 function generateDuplicates(num) {
     const list = [];
     for (let i = 0; i < num; i++) {
-        list.push(new Car(road.getLaneCenter(1), 100, 30, 50, "autopilot", 6.5));
+        list.push(new Car(road.getLaneCenter(1), 100, 42, 70, "autopilot", 6.5));
     }
     return list;
 }
@@ -190,13 +186,13 @@ function seedFromBrain(brain) {
     const freshCount = Math.floor(cars.length * 0.05);
     for (let i = 0; i < cars.length; i++) {
         if (!brain.levels || brain.levels[0].inputs.length !== cars[i].sensor.inputSize + 1) {
-            cars[i].autoPilot = new NeuralNetwork([cars[i].sensor.inputSize + 1, 6, 4]);
+            cars[i].autoPilot = new NeuralNetwork(NeuralNetwork.getArchitecture(cars[i].sensor.inputSize + 1));
             continue;
         }
         cars[i].autoPilot = NeuralNetwork.clone(elite);
         if (i === 0) continue;
         if (i < freshCount) {
-            cars[i].autoPilot = new NeuralNetwork([cars[i].sensor.inputSize + 1, 6, 4]);
+            cars[i].autoPilot = new NeuralNetwork(NeuralNetwork.getArchitecture(cars[i].sensor.inputSize + 1));
         } else {
             const rate = 0.05 + (i / cars.length) * 0.2;
             NeuralNetwork.mutate(cars[i].autoPilot, rate);
@@ -218,6 +214,10 @@ function naturalize(elite) {
     }
     optimalCar = cars[0];
     generationOverlayIndex = 0;
+}
+
+function forceNextGeneration() {
+    naturalize(optimalCar || cars[0]);
 }
 
 // Physics & Fitness Step
@@ -272,10 +272,23 @@ function stepSimulation() {
             if (cars[i].speed > 3.0) highSpeedFrames[i]++;
             if (cars[i].speed > cars[i].maxSpeed * 0.95) maxSpeedFrames[i]++;
             laneCenterPenaltyFrames[i] += laneOffset;
-            if (laneOffset > 0.4) onDividerFrames[i]++;
+            // Only penalize if significantly far from the center (straddling)
+            if (laneOffset > 15) onDividerFrames[i]++;
 
-            if (cars[i].controls.backwards && cars[i].speed > 0) brakeFrames[i]++;
-            if (Math.abs(cars[i].speed) < 0.3) stopFrames[i]++;
+            // Virtual Pace Car: Mathematically eliminates tailgating exploits.
+            // The car must maintain an overall average speed of at least 2.8 pixels/frame.
+            // Since all NPC traffic moves slower than 2.0, tailgating indefinitely will cause
+            // the average speed to slowly bleed out until the AI is disqualified.
+            if (survivalFrames[i] > 300) {
+                const carDistance = -cars[i].y;
+                const avgSpeed = carDistance / survivalFrames[i];
+                if (avgSpeed < 2.8) {
+                    cars[i].hit = true; // Killed by the Pace Car for being too sluggish
+                }
+            }
+            if (cars[i].y > currentFrontY + 800) {
+                cars[i].hit = true;
+            }
             if (cars[i].speed < -0.1) backwardsFrames[i]++;
             anglePenaltyFrames[i] += Math.abs(cars[i].angle);
 
@@ -289,14 +302,34 @@ function stepSimulation() {
         }
     }
 
-    // Leader is strictly the alive swarm car furthest ahead (minimum Y coordinate)
+    // Leader evaluation: Prioritize distance, but penalize straddling lane dividers
     const aliveCars = cars.filter(c => !c.hit);
 
     if (aliveCars.length > 0) {
         let leader = aliveCars[0];
-        for (let i = 1; i < aliveCars.length; i++) {
-            if (aliveCars[i].y < leader.y) {
-                leader = aliveCars[i];
+        let bestFitness = -Infinity;
+        
+        for (let i = 0; i < aliveCars.length; i++) {
+            const car = aliveCars[i];
+            const idx = cars.indexOf(car);
+            
+            // Base fitness is how far forward the car has driven (negative Y)
+            const distance = -car.y;
+            
+            // Explicitly reward staying alive (survival) to encourage slowing down and waiting
+            const survivalBonus = survivalFrames[idx] * 2;
+            
+            // Massive reward for maintaining high speeds to prioritize overtaking empty lanes
+            const speedBonus = (highSpeedFrames[idx] * 4) + (maxSpeedFrames[idx] * 8);
+            
+            // Light penalty for straddling to discourage twitching, without punishing deliberate overtakes
+            const dividerPenalty = onDividerFrames[idx] * 1; 
+            
+            const fitness = distance + survivalBonus + speedBonus - dividerPenalty;
+            
+            if (fitness > bestFitness) {
+                bestFitness = fitness;
+                leader = car;
             }
         }
         optimalCar = leader;

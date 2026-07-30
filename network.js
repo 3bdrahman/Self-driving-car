@@ -4,6 +4,12 @@
  */
 
 class NeuralNetwork {
+    static HIDDEN_LAYERS = [6];
+
+    static getArchitecture(inputSize) {
+        return [inputSize, ...NeuralNetwork.HIDDEN_LAYERS, 4];
+    }
+
     constructor(neuronCounts) {
         this.levels = [];
         for (let i = 0; i < neuronCounts.length - 1; i++) {
@@ -12,9 +18,9 @@ class NeuralNetwork {
     }
 
     static feedForward(givenInputs, network) {
-        let outputs = Level.feedForward(givenInputs, network.levels[0]);
+        let outputs = Level.feedForward(givenInputs, network.levels[0], network.levels.length === 1);
         for (let i = 1; i < network.levels.length; i++) {
-            outputs = Level.feedForward(outputs, network.levels[i]);
+            outputs = Level.feedForward(outputs, network.levels[i], i === network.levels.length - 1);
         }
         return outputs;
     }
@@ -124,7 +130,7 @@ class Level {
         }
     }
 
-    static feedForward(givenInputs, level) {
+    static feedForward(givenInputs, level, isOutputLayer = false) {
         for (let i = 0; i < level.inputs.length; i++) {
             level.inputs[i] = givenInputs[i];
         }
@@ -135,10 +141,10 @@ class Level {
                 sum += level.inputs[j] * level.weights[j][i];
             }
 
-            if (sum > level.biases[i]) {
-                level.outputs[i] = 1;
+            if (isOutputLayer) {
+                level.outputs[i] = sum > level.biases[i] ? 1 : 0;
             } else {
-                level.outputs[i] = 0;
+                level.outputs[i] = Math.tanh(sum - level.biases[i]);
             }
         }
 

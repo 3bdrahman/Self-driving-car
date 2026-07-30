@@ -9,7 +9,7 @@ class Sensor {
     constructor(car) {
         this.car = car;
         this.rayCount = 9;
-        this.rayLength = 320;
+        this.rayLength = 106;
         this.raySpread = Math.PI * 0.8; // 144 degree forward arc
 
         // 9 rays x 2 channels (distance + object kind: border / traffic) = 18 inputs
@@ -96,16 +96,21 @@ class Sensor {
 
         for (let i = 0; i < this.rayCount; i++) {
             let end = this.rays[i][1];
-            let isHit = false;
+            let hitType = null;
 
             if (this.readings[i]) {
                 end = this.readings[i];
-                isHit = true;
+                hitType = this.readings[i].type;
             }
+
+            // Differentiate colors: Green = clear, Yellow = road border, Red = traffic obstacle
+            let rayColor = "#00ff88"; 
+            if (hitType === "border") rayColor = "#eab308";
+            if (hitType === "traffic") rayColor = "#ef4444";
 
             context.beginPath();
             context.lineWidth = 2;
-            context.strokeStyle = isHit ? "#ef4444" : "#00ff88";
+            context.strokeStyle = rayColor;
             context.moveTo(this.rays[i][0].x, this.rays[i][0].y);
             context.lineTo(end.x, end.y);
             context.stroke();
@@ -117,10 +122,10 @@ class Sensor {
             context.lineTo(this.rays[i][1].x, this.rays[i][1].y);
             context.stroke();
 
-            if (isHit) {
+            if (hitType) {
                 context.beginPath();
                 context.arc(end.x, end.y, 4, 0, Math.PI * 2);
-                context.fillStyle = "#ef4444";
+                context.fillStyle = rayColor;
                 context.fill();
             }
         }

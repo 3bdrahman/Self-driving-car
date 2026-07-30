@@ -29,9 +29,8 @@
             <div id="storageButtons">
                 <button class="btn" title="Save best model to browser local storage" onclick="saveBrain()">💾 Save (Browser)</button>
                 <button class="btn btn-danger" title="Clear saved models & restart Gen 1 from scratch" onclick="resetBrain()">🗑 Reset Storage</button>
-                <button class="btn" title="Download best model as JSON file to disk" onclick="exportBrainJSON()">📤 Export File</button>
-                <button class="btn" title="Load model from JSON file into current population" onclick="document.getElementById('importFile').click()">📥 Import File</button>
-                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importBrainJSON(event)">
+                <button class="btn" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
+                <button class="btn" id="nextGenBtn" onclick="forceNextGeneration()" title="Force advance to the next generation">⏭ Next Gen</button>
             </div>
 
             <!-- Toast notification for storage events -->
@@ -55,9 +54,6 @@
 
         <!-- Simulation Controls Bar -->
         <div id="controlsBar">
-            <button class="btn" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
-            <button class="btn" id="nextGenBtn" onclick="forceNextGeneration()" title="Force advance to the next generation">⏭ Next Gen</button>
-
             <div class="control-group">
                 <label for="simSpeed">Speed</label>
                 <input type="range" id="simSpeed" min="1" max="10" value="1" step="1">
@@ -72,13 +68,13 @@
         </div>
 
         <!-- Scripts -->
-        <script src="utils.js?v=4"></script>
-        <script src="network.js?v=4"></script>
-        <script src="networkVisualizer.js?v=4"></script>
-        <script src="sensor.js?v=4"></script>
-        <script src="road.js?v=4"></script>
-        <script src="controls.js?v=4"></script>
-        <script src="car.js?v=4"></script>
-        <script src="main.js?v=4"></script>
+        <script src="utils.js?v=5"></script>
+        <script src="network.js?v=5"></script>
+        <script src="networkVisualizer.js?v=5"></script>
+        <script src="sensor.js?v=5"></script>
+        <script src="road.js?v=5"></script>
+        <script src="controls.js?v=5"></script>
+        <script src="car.js?v=5"></script>
+        <script src="main.js?v=5"></script>
     </body>
 </html>

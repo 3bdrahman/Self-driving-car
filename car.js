@@ -30,12 +30,15 @@ function getTintedCarSprite(color, width, height) {
 
         ctx.globalCompositeOperation = "destination-in";
         ctx.drawImage(carImage, 0, 0, width, height);
+        
+        // ONLY cache the fully rendered sprite
+        spriteCache.set(key, canvas);
     } else {
         ctx.fillStyle = color;
         ctx.fillRect(0, 0, width, height);
+        // Do NOT cache this fallback rectangle; try again next frame
     }
 
-    spriteCache.set(key, canvas);
     return canvas;
 }
 

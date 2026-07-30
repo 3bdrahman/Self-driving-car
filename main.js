@@ -461,34 +461,7 @@ function resetBrain() {
 }
 function destroy() { resetBrain(); }
 
-function exportBrainJSON() {
-    if (!optimalCar || !optimalCar.autoPilot) return;
-    const json = NeuralNetwork.serialize(optimalCar.autoPilot);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `sdc-brain-gen${generation}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast("📤 Model exported to JSON file!");
-}
 
-function importBrainJSON(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const brain = NeuralNetwork.deserialize(e.target.result);
-        if (brain) {
-            seedFromBrain(brain);
-            showToast("📥 Model imported successfully!");
-        } else {
-            showToast("❌ Failed to parse imported JSON file.");
-        }
-    };
-    reader.readAsText(file);
-}
 
 function togglePause() {
     isPaused = !isPaused;
